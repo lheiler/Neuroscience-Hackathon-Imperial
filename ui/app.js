@@ -361,59 +361,197 @@ if (btnDeleteProfile) {
 
 
 // ==========================================
-// User Flow: Calibration & Live Session
+// User Flow: Calibration Stimulus (VEP)
 // ==========================================
-const calibOverlay = document.getElementById('calibration-overlay');
-const calibProgress = document.getElementById('calib-progress');
-const calibTitle = document.getElementById('calib-title');
-const calibDesc = document.getElementById('calib-desc');
+const calibrationSetupModal = document.getElementById('calibration-setup-modal');
+const btnCloseCalSetup = document.getElementById('btn-close-cal-setup');
+const btnStartStimulus = document.getElementById('btn-start-stimulus');
+
+const stimulusOverlay = document.getElementById('calibration-stimulus');
+const stimReadyContainer = document.getElementById('stim-ready-container');
+const btnTriggerCountdown = document.getElementById('btn-trigger-countdown');
+const stimCountdown = document.getElementById('stim-countdown');
+const stimFixation = document.getElementById('stim-fixation');
+const stimCue = document.getElementById('stim-cue');
+const calTimeElapsed = document.getElementById('cal-time-elapsed');
+const calTrialCounter = document.getElementById('cal-trial-counter');
+const calProgressBar = document.getElementById('cal-progress-bar');
+const btnCancelCalibration = document.getElementById('btn-cancel-calibration');
+
+let calibrationInterval = null;
+let calibrationTimeout = null;
+let calibrationStartTime = 0;
+let timeElapsedInterval = null;
+
+const TOTAL_TRIALS = 20; // Total flashes per calibration session
+const DOT_INTERVAL_MS = 3000;
+const DOT_ON_MS = 800; // Up from 150ms for better evoked response
+const LEAD_MS = 10;
+
+const directions = [
+    { name: "up", symbol: "&uarr;", triggerValue: 1 },
+    { name: "down", symbol: "&darr;", triggerValue: 2 },
+    { name: "left", symbol: "&larr;", triggerValue: 3 },
+    { name: "right", symbol: "&rarr;", triggerValue: 4 },
+];
+
+function randomDirection() {
+    return directions[Math.floor(Math.random() * directions.length)];
+}
+
+async function sendTrigger(value, meta = {}) {
+    try {
+        // Integrate with the original Python UDP bridge logic
+        await fetch("http://127.0.0.1:8765/trigger", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value, ...meta }),
+        });
+    } catch (e) {
+        console.warn("Trigger send failed (Is UDP bridge running?):", e.message);
+    }
+}
+
+function updateTimeElapsed() {
+    if (!calibrationStartTime) return;
+    const now = performance.now();
+    const diff = Math.floor((now - calibrationStartTime) / 1000);
+    const m = Math.floor(diff / 60).toString().padStart(2, '0');
+    const s = (diff % 60).toString().padStart(2, '0');
+    calTimeElapsed.innerText = `${m}:${s}`;
+}
+
+function stopCalibration(complete = false) {
+    if (calibrationInterval) clearTimeout(calibrationInterval);
+    if (calibrationTimeout) clearTimeout(calibrationTimeout);
+    if (timeElapsedInterval) clearInterval(timeElapsedInterval);
+
+    stimulusOverlay.classList.add('hidden');
+    stimCountdown.style.display = 'none';
+    stimReadyContainer.style.display = 'flex';
+    if (stimFixation) stimFixation.style.opacity = '1';
+    stimCue.style.display = 'none';
+
+    if (complete) {
+        const activeProf = profiles.find(p => p.isActive);
+        if (activeProf) {
+            activeProf.calibration_status = 'calibrated';
+            fetch('/api/profiles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(activeProf)
+            }).then(() => renderProfiles()).catch(e => console.error(e));
+        }
+    }
+}
+
+function startCueLoop() {
+    calibrationStartTime = performance.now();
+    timeElapsedInterval = setInterval(updateTimeElapsed, 1000);
+
+    let cycle = 0;
+
+    function scheduleCycle() {
+        if (cycle >= TOTAL_TRIALS) {
+            stopCalibration(true);
+            return;
+        }
+
+        calTrialCounter.innerText = `Trial ${cycle + 1} / ${TOTAL_TRIALS}`;
+        calProgressBar.style.width = `${((cycle + 1) / TOTAL_TRIALS) * 100}%`;
+
+        const targetOnset = calibrationStartTime + cycle * DOT_INTERVAL_MS;
+        const now = performance.now();
+        const delayToOnset = Math.max(0, targetOnset - now);
+
+        calibrationInterval = setTimeout(() => {
+            const dir = randomDirection();
+
+            // === CUE ONSET ===
+            stimFixation.style.opacity = '0';
+            stimCue.innerHTML = dir.symbol;
+            stimCue.style.display = 'block';
+            sendTrigger(dir.triggerValue); // START
+
+            // Hide cue
+            calibrationTimeout = setTimeout(() => {
+                stimCue.style.display = 'none';
+                stimFixation.style.opacity = '1';
+            }, DOT_ON_MS);
+
+            // === END TRIGGER ===
+            setTimeout(() => {
+                sendTrigger(0); // END
+            }, Math.max(0, DOT_INTERVAL_MS - LEAD_MS));
+
+            cycle++;
+            scheduleCycle();
+        }, delayToOnset);
+    }
+
+    scheduleCycle();
+}
 
 btnCalibrate.addEventListener('click', () => {
     const activeProf = profiles.find(p => p.isActive);
     if (!activeProf) return;
 
-    // Show Loader
-    calibOverlay.classList.remove('hidden');
-    calibTitle.innerText = "Calibrating Headset...";
-    calibDesc.innerText = "Please remain still and follow the on-screen prompts.";
-    calibProgress.style.width = '0%';
+    calibrationSetupModal.classList.remove('hidden');
+});
 
-    // Simulate Calibration Progress
-    let val = 0;
-    const interval = setInterval(() => {
-        val += Math.random() * 8;
-        if (val >= 100) {
-            val = 100;
-            clearInterval(interval);
+btnCloseCalSetup.addEventListener('click', () => {
+    calibrationSetupModal.classList.add('hidden');
+});
 
-            calibProgress.style.width = '100%';
-            calibTitle.innerText = "Calibration Complete!";
-            calibTitle.style.color = "var(--success)";
-            calibDesc.innerText = "Syncing generated weights...";
+btnStartStimulus.addEventListener('click', () => {
+    calibrationSetupModal.classList.add('hidden');
 
-            // Update Backend
-            setTimeout(async () => {
-                activeProf.calibration_status = 'calibrated';
+    // Add a tiny delay to let the setup modal fade before showing the fullscreen overlay
+    setTimeout(() => {
+        stimulusOverlay.classList.remove('hidden');
 
-                try {
-                    await fetch('/api/profiles', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(activeProf)
-                    });
+        // Force a reflow to ensure the transition takes effect
+        void stimulusOverlay.offsetWidth;
+        stimulusOverlay.style.opacity = '1';
 
-                    calibOverlay.classList.add('hidden');
-                    calibTitle.style.color = "";
-                    renderProfiles();
-                } catch (e) {
-                    alert("Error saving calibration state to backend!");
-                }
-            }, 800);
-        } else {
-            calibProgress.style.width = val + '%';
-        }
+        calTimeElapsed.innerText = "00:00";
+        calTrialCounter.innerText = `Trial 0 / ${TOTAL_TRIALS}`;
+        calProgressBar.style.width = '0%';
+
+        // Initial state: Show ready prompt, hide countdown/cue
+        stimReadyContainer.style.display = 'flex';
+        stimFixation.style.opacity = '1';
+        stimCountdown.style.display = 'none';
+        stimCue.style.display = 'none';
     }, 150);
 });
+
+btnTriggerCountdown.addEventListener('click', () => {
+    // Subject is ready!
+    stimReadyContainer.style.display = 'none';
+    stimCountdown.style.display = 'block';
+
+    let count = 3;
+    stimCountdown.innerText = count;
+
+    function runCountdown() {
+        if (count > 1) {
+            count--;
+            stimCountdown.innerText = count;
+            calibrationTimeout = setTimeout(runCountdown, 1000);
+        } else {
+            calibrationTimeout = setTimeout(() => {
+                stimCountdown.style.display = "none";
+                stimFixation.style.opacity = '1';
+                setTimeout(startCueLoop, 1000); // 1s baseline before first flash
+            }, 1000);
+        }
+    }
+
+    runCountdown();
+});
+
+btnCancelCalibration.addEventListener('click', () => stopCalibration(false));
 
 // Start Session Logic Builder
 function initiateSessionFlow() {
@@ -421,20 +559,8 @@ function initiateSessionFlow() {
     if (!activeProf) return;
     if (activeProf.calibration_status !== 'calibrated') return; // Strict block
 
-    // Simulate session start visually, then navigate to Dashboard
-    calibOverlay.classList.remove('hidden');
-    calibTitle.innerText = "Starting Live Decoder...";
-    calibTitle.style.color = "var(--primary)";
-    calibDesc.innerText = "Connecting to streaming server...";
-    calibProgress.style.width = '0%';
-
-    setTimeout(() => {
-        calibProgress.style.width = '100%';
-        setTimeout(() => {
-            calibOverlay.classList.add('hidden');
-            switchView('dashboard');
-        }, 500);
-    }, 800);
+    // Simply transition to dashboard for now, or we could show a brief loading state
+    switchView('dashboard');
 }
 
 btnStartSession.addEventListener('click', initiateSessionFlow);
@@ -586,10 +712,10 @@ function renderCharts(usage) {
     let cmdData = [0, 0, 0, 0];
     if (usage.sessions > 0) {
         cmdData = [
-            usage.sessions * 4 + Math.floor(Math.random() * 10), // Arriba
-            usage.sessions * 3 + Math.floor(Math.random() * 10), // Abajo
-            usage.sessions * 2 + Math.floor(Math.random() * 10), // Izquierda
-            usage.sessions * 4 + Math.floor(Math.random() * 10)  // Derecha
+            usage.sessions * 4 + Math.floor(Math.random() * 10), // Up
+            usage.sessions * 3 + Math.floor(Math.random() * 10), // Down
+            usage.sessions * 2 + Math.floor(Math.random() * 10), // Left
+            usage.sessions * 4 + Math.floor(Math.random() * 10)  // Right
         ];
     } else {
         cmdData = [1, 1, 1, 1]; // equal empty state
@@ -598,7 +724,7 @@ function renderCharts(usage) {
     distChartInstance = new Chart(ctxDist, {
         type: 'doughnut',
         data: {
-            labels: ['Arriba', 'Abajo', 'Izquierda', 'Derecha'],
+            labels: ['Up', 'Down', 'Left', 'Right'],
             datasets: [{
                 data: cmdData,
                 backgroundColor: [
@@ -637,7 +763,6 @@ let headsetInterval = null;
 function initHeadsetMock() {
     const channelList = document.getElementById('channel-list');
     const consoleBox = document.getElementById('headset-console');
-    const badge = document.getElementById('headset-status-badge');
 
     // Clear previous
     channelList.innerHTML = '';
@@ -659,8 +784,6 @@ function initHeadsetMock() {
 
     if (headsetInterval) clearInterval(headsetInterval);
 
-    badge.innerText = "Connected";
-    badge.className = "badge badge-success";
     logConsole("Stream detected: Unicorn_v1 (sampling @ 250Hz)");
     logConsole("Signal impedance within operational bounds.");
 

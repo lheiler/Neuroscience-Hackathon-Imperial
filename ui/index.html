@@ -14,7 +14,7 @@
     <!-- Chart.js for Visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <link rel="stylesheet" href="style.css?v=7.0">
+    <link rel="stylesheet" href="style.css?v=13.0">
 </head>
 
 <body>
@@ -315,7 +315,117 @@
         </div>
     </div>
 
-    <script src="app.js?v=7.0"></script>
+    <!-- Calibration Setup Modal -->
+    <div id="calibration-setup-modal" class="modal-overlay hidden" style="z-index: 150;">
+        <div class="modal glass-panel">
+            <div class="modal-header">
+                <h2>Initial Setup</h2>
+                <button id="btn-close-cal-setup" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body text-center" style="padding: 48px 24px;">
+                <i class="fa-solid fa-satellite-dish huge-icon" style="color: var(--primary);"></i>
+                <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 12px;">Impedance & Position Check</h3>
+                <p style="color: var(--text-muted); line-height: 1.6; max-width: 320px; margin: 0 auto;">
+                    Ensure the headset is correctly positioned and all electrodes have stable contact before beginning
+                    the visual stimulus sequence.
+                </p>
+            </div>
+            <div class="modal-footer" style="justify-content: center; padding: 24px;">
+                <button id="btn-start-stimulus" class="btn btn-primary" style="padding: 12px 32px; font-size: 16px;">
+                    <i class="fa-solid fa-play"></i> Begin Calibration
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Calibration Stimulus -->
+    <div id="calibration-stimulus" class="modal-overlay hidden"
+        style="z-index: 1000; background: #050505; flex-direction: column; justify-content: flex-start; align-items: center; transition: opacity 0.5s ease-in-out;">
+
+        <!-- Header: Stats & Progress -->
+        <div class="cal-header"
+            style="width: 100%; padding: 24px 48px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.5);">
+            <div class="cal-stat"
+                style="display: flex; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; font-size: 18px; color: var(--text-muted);">
+                <i class="fa-solid fa-clock" style="color: var(--primary);"></i>
+                <span id="cal-time-elapsed" style="color: white; font-weight: 500;">00:00</span>
+            </div>
+
+            <div class="progress-container" style="flex: 1; max-width: 600px; margin: 0 48px;">
+                <div
+                    style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; color: var(--text-muted); font-weight: 500;">
+                    <span>Session Progress</span>
+                    <span id="cal-trial-counter">Trial 0 / --</span>
+                </div>
+                <div class="progress-bar-container"
+                    style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                    <div class="progress-bar-fill" id="cal-progress-bar"
+                        style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s ease;"></div>
+                </div>
+            </div>
+
+            <button class="btn btn-secondary" id="btn-cancel-calibration">
+                <i class="fa-solid fa-xmark"></i> Abort Session
+            </button>
+        </div>
+
+        <!-- Stimulus Area -->
+        <div class="stimulus-area"
+            style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative; width: 100%;">
+            <!-- Countdown -->
+            <div id="stim-countdown"
+                style="font-size: 140px; font-weight: 700; color: white; display: none; text-shadow: 0 0 40px rgba(56, 189, 248, 0.4);">
+                3</div>
+
+            <!-- Fixation cross and Ready button container -->
+            <div id="stim-ready-container"
+                style="display: flex; flex-direction: column; align-items: center; gap: 32px;">
+                <!-- Crosshair (Fixation point) -->
+                <div id="stim-fixation"
+                    style="font-size: 80px; font-weight: 300; color: rgba(255,255,255,0.15); transition: opacity 0.2s ease;">
+                    +</div>
+
+                <button id="btn-trigger-countdown" class="btn btn-primary"
+                    style="padding: 16px 40px; font-size: 18px; box-shadow: 0 0 30px rgba(56, 189, 248, 0.2);">
+                    Ready to Start
+                </button>
+            </div>
+
+            <!-- Arrow Cue -->
+            <div id="stim-cue"
+                style="font-size: 320px; font-weight: 800; color: white; display: none; text-shadow: 0 0 60px rgba(255,255,255,0.2); line-height: 1;">
+                &uarr;</div>
+        </div>
+
+        <!-- Footer: Instructions -->
+        <div class="cal-footer"
+            style="width: 100%; padding: 32px 48px; display: flex; justify-content: center; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.3);">
+            <div style="max-width: 800px; text-align: center; display: flex; gap: 32px; align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <span
+                        style="color: var(--primary); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Focus</span>
+                    <p style="color: #eee; font-size: 14px; margin: 0; font-weight: 500;">Keep your eyes on the central
+                        fixation crosshair.</p>
+                </div>
+                <div style="width: 1px; height: 30px; background: rgba(255,255,255,0.1);"></div>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <span
+                        style="color: var(--primary); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Task</span>
+                    <p style="color: #eee; font-size: 14px; margin: 0; font-weight: 500;">When an arrow appears, imagine
+                        moving in that direction.</p>
+                </div>
+                <div style="width: 1px; height: 30px; background: rgba(255,255,255,0.1);"></div>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <span
+                        style="color: var(--primary); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Stability</span>
+                    <p style="color: #eee; font-size: 14px; margin: 0; font-weight: 500;">Minimize blinking and muscle
+                        movement during the flash.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=13.0"></script>
 </body>
 
 </html>
