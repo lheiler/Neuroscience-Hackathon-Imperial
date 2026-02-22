@@ -3,11 +3,8 @@ from flask_cors import CORS
 import os
 import json
 import numpy as np
-import os
 from openai import OpenAI
-from flask import request, jsonify
 from dotenv import load_dotenv
-import os
 
 load_dotenv()  # loads variables from .env
 

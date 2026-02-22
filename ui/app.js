@@ -496,14 +496,13 @@ function stopStimulusMode(returnView = 'dashboard') {
     switchView(returnView);
 
     if (cardsPhaseTimeout) clearTimeout(cardsPhaseTimeout);
-cardsPhaseTimeout = null;
+    cardsPhaseTimeout = null;
 
     if (llmPhaseTimeout) clearTimeout(llmPhaseTimeout);
-llmPhaseTimeout = null;
-
+    llmPhaseTimeout = null;
 
     if (llmLoading) llmLoading.classList.add('hidden');
-if (questionCards) questionCards.classList.add('hidden');
+    if (questionCards) questionCards.classList.add('hidden');
 }
 
 // Exit button (discreet X)
@@ -719,7 +718,7 @@ function initiateSessionFlow() {
     if (!activeProf) return;
     if (activeProf.calibration_status !== 'calibrated') return; // Strict block
 
-        // Optional: quick “connecting” splash (re-using your loader)
+    // Optional: quick “connecting” splash (re-using your loader)
     calibOverlay.classList.remove('hidden');
     calibTitle.innerText = "Starting Live Session...";
     calibTitle.style.color = "var(--primary)";

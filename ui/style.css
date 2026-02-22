@@ -1325,19 +1325,31 @@ select option {
 .stimulus-stage {
     width: 100vw;
     height: 100vh;
-    border-radius: 0;         /* full screen, no rounded corners */
+    border-radius: 0;
+    /* full screen, no rounded corners */
     overflow: hidden;
-    display: block;           /* no grid needed now */
-    border: none;             /* remove panel border */
-    box-shadow: none;         /* remove panel shadow */
+    display: block;
+    /* no grid needed now */
+    border: none;
+    /* remove panel border */
+    box-shadow: none;
+    /* remove panel shadow */
     position: relative;
     background: rgba(0, 0, 0, 0.15);
 }
 
 
 /* === BAR THICKNESS (edit these) === */
-.stimulus-top { height: 8vh; }      /* top bar thickness */
-.stimulus-bottom { height: 8vh; }   /* bottom bar thickness */
+.stimulus-top {
+    height: 8vh;
+}
+
+/* top bar thickness */
+.stimulus-bottom {
+    height: 8vh;
+}
+
+/* bottom bar thickness */
 
 .stimulus-top,
 .stimulus-bottom {
@@ -1362,35 +1374,24 @@ select option {
     background: #000;
     /* Add a “visual texture” (helps fixation / saliency) */
     background-image:
-        repeating-linear-gradient(
-            90deg,
-            rgba(196,1, 1) 0px,
+        repeating-linear-gradient(90deg,
+            rgba(196, 1, 1) 0px,
             rgb(196, 1, 1) 18px,
-            rgba(13,206,6) 18px,
-            rgb(13, 206, 6) 36px
-        );
+            rgba(13, 206, 6) 18px,
+            rgb(13, 206, 6) 36px);
     filter: contrast(1.25) saturate(1.1);
 }
 
 .stimulus-center {
     position: absolute;
-    top: 8vh;                 /* must match stimulus-top height */
-    bottom: 8vh;              /* must match stimulus-bottom height */
+    top: 8vh;
+    /* must match stimulus-top height */
+    bottom: 8vh;
+    /* must match stimulus-bottom height */
     left: 0;
     right: 0;
-    background: rgba(0,0,0,0.10);
+    background: rgba(0, 0, 0, 0.10);
 }
-
-
-
-
-
-
-
-
-
-
-
 
 .stimulus-exit-btn {
     position: absolute;
@@ -1420,31 +1421,97 @@ select option {
    - High-contrast black/white to drive strong evoked response
 */
 @keyframes flashStrongA {
-    0%   { filter: brightness(0.2) contrast(1.4); transform: translateZ(0); }
-    10%  { filter: brightness(2.0) contrast(1.6); }
-    20%  { filter: brightness(0.2) contrast(1.4); }
-    30%  { filter: brightness(2.0) contrast(1.6); }
-    40%  { filter: brightness(0.2) contrast(1.4); }
-    50%  { filter: brightness(2.0) contrast(1.6); }
-    60%  { filter: brightness(0.2) contrast(1.4); }
-    70%  { filter: brightness(2.0) contrast(1.6); }
-    80%  { filter: brightness(0.2) contrast(1.4); }
-    90%  { filter: brightness(2.0) contrast(1.6); }
-    100% { filter: brightness(0.2) contrast(1.4); }
+    0% {
+        filter: brightness(0.2) contrast(1.4);
+        transform: translateZ(0);
+    }
+
+    10% {
+        filter: brightness(2.0) contrast(1.6);
+    }
+
+    20% {
+        filter: brightness(0.2) contrast(1.4);
+    }
+
+    30% {
+        filter: brightness(2.0) contrast(1.6);
+    }
+
+    40% {
+        filter: brightness(0.2) contrast(1.4);
+    }
+
+    50% {
+        filter: brightness(2.0) contrast(1.6);
+    }
+
+    60% {
+        filter: brightness(0.2) contrast(1.4);
+    }
+
+    70% {
+        filter: brightness(2.0) contrast(1.6);
+    }
+
+    80% {
+        filter: brightness(0.2) contrast(1.4);
+    }
+
+    90% {
+        filter: brightness(2.0) contrast(1.6);
+    }
+
+    100% {
+        filter: brightness(0.2) contrast(1.4);
+    }
 }
 
 @keyframes flashStrongB {
-    0%   { filter: brightness(2.0) contrast(1.6); transform: translateZ(0); }
-    10%  { filter: brightness(0.2) contrast(1.4); }
-    20%  { filter: brightness(2.0) contrast(1.6); }
-    30%  { filter: brightness(0.2) contrast(1.4); }
-    40%  { filter: brightness(2.0) contrast(1.6); }
-    50%  { filter: brightness(0.2) contrast(1.4); }
-    60%  { filter: brightness(2.0) contrast(1.6); }
-    70%  { filter: brightness(0.2) contrast(1.4); }
-    80%  { filter: brightness(2.0) contrast(1.6); }
-    90%  { filter: brightness(0.2) contrast(1.4); }
-    100% { filter: brightness(2.0) contrast(1.6); }
+    0% {
+        filter: brightness(2.0) contrast(1.6);
+        transform: translateZ(0);
+    }
+
+    10% {
+        filter: brightness(0.2) contrast(1.4);
+    }
+
+    20% {
+        filter: brightness(2.0) contrast(1.6);
+    }
+
+    30% {
+        filter: brightness(0.2) contrast(1.4);
+    }
+
+    40% {
+        filter: brightness(2.0) contrast(1.6);
+    }
+
+    50% {
+        filter: brightness(0.2) contrast(1.4);
+    }
+
+    60% {
+        filter: brightness(2.0) contrast(1.6);
+    }
+
+    70% {
+        filter: brightness(0.2) contrast(1.4);
+    }
+
+    80% {
+        filter: brightness(2.0) contrast(1.6);
+    }
+
+    90% {
+        filter: brightness(0.2) contrast(1.4);
+    }
+
+    100% {
+        filter: brightness(2.0) contrast(1.6);
+    }
 }
 
 /* Default rate: 8Hz-ish feel (125ms steps).
@@ -1453,13 +1520,19 @@ select option {
 .flash-a {
     animation: flashStrongA 1.0s linear infinite;
 }
+
 .flash-b {
     animation: flashStrongB 1.0s linear infinite;
 }
 
 /* Respect reduced-motion */
 @media (prefers-reduced-motion: reduce) {
-    .flash-a, .flash-b { animation: none; }
+
+    .flash-a,
+    .flash-b {
+        animation: none;
+    }
+
     .stimulus-subtitle::after {
         content: " (Flashing disabled due to reduced motion settings.)";
         color: var(--text-muted);
@@ -1487,13 +1560,15 @@ select option {
 
 .stimulus-prompt {
     position: absolute;
-    top: 2.8vh;                 /* sits above the top card */
+    top: 2.8vh;
+    /* sits above the top card */
     left: 50%;
     transform: translateX(-50%);
     font-size: 18px;
     font-weight: 800;
     letter-spacing: -0.3px;
-    color: var(--primary);      /* your dashboard blue */
+    color: var(--primary);
+    /* your dashboard blue */
     text-shadow: 0 0 18px var(--primary-glow);
     background: rgba(56, 189, 248, 0.08);
     border: 1px solid rgba(56, 189, 248, 0.18);
@@ -1511,24 +1586,28 @@ select option {
 .stimulus-cards {
     position: absolute;
     inset: 0;
-    pointer-events: none; /* purely visual for demo; change to 'auto' later if clickable */
+    pointer-events: none;
+    /* purely visual for demo; change to 'auto' later if clickable */
 }
 
 /* Card base styling (matches your glassy design language) */
 .stim-card {
     position: absolute;
-    padding: 26px 34px;              /* increased padding */
+    padding: 26px 34px;
+    /* increased padding */
     border-radius: var(--radius-lg);
     background: rgba(0, 0, 0, 0.32);
     border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow: 0 16px 50px rgba(0, 0, 0, 0.45);
     color: var(--text-main);
     font-weight: 700;
-    font-size: 18px;                 /* slightly larger text */
+    font-size: 18px;
+    /* slightly larger text */
     letter-spacing: -0.3px;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    max-width: min(520px, 78vw);     /* allow wider cards */
+    max-width: min(520px, 78vw);
+    /* allow wider cards */
     text-align: center;
 }
 
@@ -1565,8 +1644,15 @@ select option {
 }
 
 @keyframes stimCardIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Fix transforms for the positioned cards that already use translate */
@@ -1574,23 +1660,49 @@ select option {
 .stimulus-cards:not(.hidden) .stim-card-bottom {
     animation: stimCardInTopBottom 220ms ease-out both;
 }
+
 @keyframes stimCardInTopBottom {
-    from { opacity: 0; transform: translateX(-50%) translateY(6px); }
-    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
 }
+
 .stimulus-cards:not(.hidden) .stim-card-left {
     animation: stimCardInLeft 220ms ease-out both;
 }
+
 @keyframes stimCardInLeft {
-    from { opacity: 0; transform: translateY(-50%) translateX(-6px); }
-    to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-50%) translateX(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+    }
 }
+
 .stimulus-cards:not(.hidden) .stim-card-right {
     animation: stimCardInRight 220ms ease-out both;
 }
+
 @keyframes stimCardInRight {
-    from { opacity: 0; transform: translateY(-50%) translateX(6px); }
-    to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-50%) translateX(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+    }
 }
 
 
@@ -1639,5 +1751,7 @@ select option {
 }
 
 @keyframes llmSpin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
