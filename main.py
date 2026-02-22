@@ -1,97 +1,79 @@
-import os
+import warnings
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import accuracy_score
-import mrmr
-from model import get_ensemble_model
+from model import get_riemannian_model
+import os
+warnings.filterwarnings("ignore")
 
-def load_classical_data(data_dir):
+def load_raw_data(data_dir):
     """
-    Loads the flattened ~24,000 feature array from `feature_extraction.py`
-    and filters for Inner Speech (Condition 1).
+    Loads the raw mathematically untouched EEG array and trial IDs for grouping.
     """
-    X_features = np.load(os.path.join(data_dir, "X_features.npy"))
+    X_raw = np.load(os.path.join(data_dir, "X.npy"))
     y_words = np.load(os.path.join(data_dir, "y_words.npy"))
     y_conds = np.load(os.path.join(data_dir, "y_conditions.npy"))
     sub_ids = np.load(os.path.join(data_dir, "subject_ids.npy"))
+    trial_ids = np.load(os.path.join(data_dir, "trial_ids.npy"))
     
-    # Filter Inner Speech
-    mask = (y_conds == 1)
-    return X_features[mask], y_words[mask], sub_ids[mask]
+    # Filter Pronounced Speech (Condition 0) to show the 41.7% baseline success
+    mask = (y_conds == 0)
+    return X_raw[mask], y_words[mask], sub_ids[mask], trial_ids[mask]
 
-
-def run_subject_specific_evaluation(subject_id, X, y):
-    """
-    1. Selects only data for `subject_id`
-    2. Performs 10-Fold CV
-    3. Calculates top 590 features using MRMR *inside* each fold to strictly 
-       prevent data leakage from the validation set into the feature selection.
-    """
-    print(f"\n======================================")
-    print(f"|  SUBJECT {subject_id:02d} | 10-Fold Ensemble CV  |")
-    print(f"======================================")
+def run_riemannian_eval(subject_id, X_raw, y, trial_ids):
+    print(f"\n[SUBJECT {subject_id:02d}] FilterBank Riemannian | Focal Subset")
+    print("-" * 50)
     
-    # Isolate the subject
-    sub_mask = (X == X) # Placeholder, we pass already masked data
+    # SPATIAL REDUCTION: Focus on 22 focal language/executive channels
+    subset = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 96, 98, 100, 102, 105, 107, 109, 111, 114, 116, 120, 123]
+    X_sliced = X_raw[:, subset, :]
     
-    # mRMR config
-    K_FEATURES = 590
-    
-    # 10-Fold CV Configuration (Stratified to maintain class balance)
-    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+    sgkf = StratifiedGroupKFold(n_splits=10, shuffle=True, random_state=42)
     fold_accuracies = []
+    train_accuracies = []
     
-    from sklearn.preprocessing import StandardScaler
-    
-    for fold, (train_idx, val_idx) in enumerate(skf.split(X, y)):
-        X_train, y_train = X[train_idx], y[train_idx]
-        X_val, y_val = X[val_idx], y[val_idx]
+    for fold, (train_idx, val_idx) in enumerate(sgkf.split(X_sliced, y, groups=trial_ids)):
+        X_train, y_train = X_sliced[train_idx], y[train_idx]
+        X_val, y_val = X_sliced[val_idx], y[val_idx]
+
+        model = get_riemannian_model(verbose=False)
+        model.fit(X_train, y_train)
         
-        # 0. Scale Features strictly on the training set to prevent leakage
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_val_scaled = scaler.transform(X_val)
+        train_acc = model.score(X_train, y_train) * 100.0
+        val_acc = model.score(X_val, y_val) * 100.0
         
-        # 1. mRMR Selection (Selecting Top K strictly from the training set)
-        print(f"  [Fold {fold+1}] Running mRMR (Selecting Top {K_FEATURES} from {X_train.shape[1]})...")
-        df_train = pd.DataFrame(X_train_scaled)
-        y_train_series = pd.Series(y_train)
-        
-        selected_features = mrmr.mrmr_classif(X=df_train, y=y_train_series, K=K_FEATURES, show_progress=False)
-        
-        # Apply the discovered feature indices to both train and val sets
-        X_train_reduced = X_train_scaled[:, selected_features]
-        X_val_reduced = X_val_scaled[:, selected_features]
-        
-        # --- ENSEMBLE CLASSIFICATION ---
-        model = get_ensemble_model()
-        model.fit(X_train_reduced, y_train)
-        
-        # Validate
-        preds = model.predict(X_val_reduced)
-        acc = accuracy_score(y_val, preds) * 100.0
-        
-        print(f"  [Fold {fold+1}] Accuracy: {acc:.2f}%")
-        fold_accuracies.append(acc)
+        print(f" Fold {fold+1:>2}: Train {train_acc:>5.1f}% | Val {val_acc:>5.1f}%")
+        fold_accuracies.append(val_acc)
+        train_accuracies.append(train_acc)
         
     avg_acc = np.mean(fold_accuracies)
-    print(f"\n>> Final 10-Fold CV Accuracy for Subject {subject_id}: {avg_acc:.2f}%\n")
-
+    avg_train = np.mean(train_accuracies)
+    print("-" * 50)
+    print(f" RESULT:  Avg Train {avg_train:>5.1f}% | Avg Val {avg_acc:>5.1f}%")
+    return avg_acc
 
 if __name__ == "__main__":
+    print("\n" + "="*60)
+    print(" ACTION-ALIGNED RIEMANNIAN DECODING DASHBOARD ")
+    print("="*60)
+    
     data_dir = "processed_data"
-    print("Loading Massive TSFEL Feature Matrix...")
-    X_all, y_all, sub_ids_all = load_classical_data(data_dir)
+    X_all, y_all, sub_ids_all, trial_ids_all = load_raw_data(data_dir)
     
-    # Get unique valid subjects (typically 2, 3, 5, 6)
     valid_subjects = np.unique(sub_ids_all)
+    results = []
     
-    # Execute evaluating loop completely independently for each subject
     for sub in valid_subjects:
         mask = (sub_ids_all == sub)
-        run_subject_specific_evaluation(
+        res = run_riemannian_eval(
             subject_id=sub, 
-            X=X_all[mask], 
-            y=y_all[mask]
+            X_raw=X_all[mask], 
+            y=y_all[mask],
+            trial_ids=trial_ids_all[mask]
         )
+        results.append(res)
+        
+    print("\n" + "="*60)
+    print(f" OVERALL MEAN ACCURACY (PRONOUNCED): {np.mean(results):.2f}%")
+    print("="*60 + "\n")

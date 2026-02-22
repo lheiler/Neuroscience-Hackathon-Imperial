@@ -28,11 +28,11 @@ def preprocess_inner_speech_data(data_dir: Path, save_dir: Path):
     N_Subj_arr = [2, 3, 5, 6]
     N_block_arr = range(1, 4)
     
-    # 1. FIR Bandpass (0.5 - 100 Hz) and Notch (50 Hz)
-    LOW_CUT = 0.5
+    # 1. FIR Bandpass (1.0 - 100 Hz) and Notch (50 Hz)
+    LOW_CUT = 1.0
     HIGH_CUT = 100.0
     NOTCH_FREQ = 50.0
-    DS_RATE = 1 # No downsampling used in this high-temporal-context model
+    DS_RATE = 1 
     
     event_id = dict(Arriba=31, Abajo=32, Derecha=33, Izquierda=34)
     
@@ -40,6 +40,9 @@ def preprocess_inner_speech_data(data_dir: Path, save_dir: Path):
     all_y_words = []
     all_y_conditions = []
     all_subject_ids = []
+    all_trial_ids = [] # Grouping factor for CV
+    
+    global_trial_counter = 0
     
     for n_s in N_Subj_arr:
         num_s = sub_name(n_s)
@@ -47,24 +50,25 @@ def preprocess_inner_speech_data(data_dir: Path, save_dir: Path):
         
         for n_b in N_block_arr:
             try:
+                # ... (BDF reading/filtering remains same)
                 bdf_path = data_dir / f"{num_s}/ses-0{n_b}/eeg/{num_s}_ses-0{n_b}_task-innerspeech_eeg.bdf"
                 if not bdf_path.exists():
                     continue
                 
                 print(f"  Loading Session: {n_b} ...")
                 rawdata = mne.io.read_raw_bdf(input_fname=bdf_path, preload=True, verbose="WARNING")
-                rawdata.set_eeg_reference(ref_channels=["EXG1", "EXG2"], verbose="WARNING")
+                rawdata.set_eeg_reference(ref_channels='average', verbose="WARNING")
                 
                 # Applying Notch and FIR Bandpass
                 rawdata.notch_filter(freqs=NOTCH_FREQ, verbose="WARNING", fir_design='firwin')
                 rawdata.filter(LOW_CUT, HIGH_CUT, verbose="WARNING", fir_design='firwin')
                 
-                # Extract Events FIRST (must be done at 1024Hz due to hardcoded sample offsets in the library)
-                # Resampling before this corrupts the Stim channel due to FIR filter ringing.
+                # Extract Events FIRST
                 print("    Extracting Events...")
                 events = get_events_from_raw(rawdata, n_s, n_b)
                 events = check_baseline_tags(events)
                 events = event_correction(events=events)
+                
                 events = add_condition_tag(events)
                 events = finalize_labels(events)
                 
@@ -78,69 +82,51 @@ def preprocess_inner_speech_data(data_dir: Path, save_dir: Path):
                 target_conditions_y = target_events_df['condition'].astype(int).to_numpy()
                 subject_id_array = np.full(len(target_events_df), n_s, dtype=int)
                 
-                # Now safely resample to 256 Hz and scale the event coordinates synchronously
+                # Resample
                 rawdata, target_event_array = rawdata.resample(256.0, events=target_event_array, verbose="WARNING")
                 
-                # 2. SELECTION: 128 EEG Channels (We will reduce to 73 -> 37 in the Feature Extraction layer)
                 picks_eeg = mne.pick_types(rawdata.info, eeg=True, exclude=["EXG1", "EXG2", "EXG3", "EXG4", "EXG5", "EXG6", "EXG7", "EXG8"], stim=False)
                 
-                # 3. EPOCHING: [1.0s to 3.5s] = 2.5 seconds (2560 points at 1024Hz)
-                tmin = 1.0
-                tmax = 3.5
-                
-                print(f"    Extracting epochs [1.0, 3.5]s...")
+                # Epoching
+                print(f"    Extracting epochs [0.5, 3.0]s (Action-Aligned)...")
                 epochs = mne.Epochs(
                     rawdata, 
                     target_event_array, 
-                    tmin=tmin, 
-                    tmax=tmax, 
+                    tmin=0.5, 
+                    tmax=3.0, 
                     picks=picks_eeg,
                     preload=True,
                     baseline=None,
                     verbose="WARNING"
                 )
                 
-                # 4. FLAT SEGMENT REJECTION: Reject below 1 μV (Keep this rule as dead channels cannot be reconstructed)
                 data = epochs.get_data() # (n_epochs, n_channels, n_times)
-                ptp = np.ptp(data, axis=-1) # Peak-to-peak amplitude
-                flat_mask = np.any(ptp < 1e-6, axis=1) # Mask epochs where ANY channel is flat
+                ptp = np.ptp(data, axis=-1)
+                flat_mask = np.any(ptp < 1e-6, axis=1)
                 
                 if np.any(flat_mask):
-                    print(f"    Rejection: Dropped {np.sum(flat_mask)} flat epochs (<1uV).")
                     epochs.drop(flat_mask, reason="FLAT")
-                    data = epochs.get_data() # Refresh data array after drop
+                    data = epochs.get_data()
                     ptp = np.ptp(data, axis=-1)
                     
-                # 5. VMD ARTIFACT REMOVAL (Replace amplitude rejection)
-                import vmdpy
-                noisy_epochs_count = 0
-                for i in range(data.shape[0]): # Iterate epochs
-                    epoch_noisy = False
-                    for j in range(data.shape[1]): # Iterate channels
-                        if ptp[i, j] > 300e-6:
-                            epoch_noisy = True
-                            # Apply VMD: (alpha, tau, K, DC, init, tol)
-                            # K=6 IMFs as specified
-                            u, u_hat, omega = vmdpy.VMD(data[i, j, :], 2000, 0, 6, 0, 1, 1e-7)
-                            # Discard IMF1 (u[0]) and reconstruct
-                            data[i, j, :u.shape[1]] = np.sum(u[1:, :], axis=0)
-                    if epoch_noisy:
-                        noisy_epochs_count += 1
-                        
-                if noisy_epochs_count > 0:
-                    print(f"    VMD Applied: Reconstructed noisy channels in {noisy_epochs_count} epochs.")
-                    
-                # Push the VMD-cleaned array back into the epochs object
+                # VMD ARTIFACT REMOVAL (DISABLED for Phase 10 to preserve signal fidelity)
+                # We skip the VMD cleaning as Riemannian covariance is robust to stochastic noise
+                # but VMD (IMF0 removal) was likely deleting discriminative intent.
                 epochs._data = data
 
+                # 6. SAVE FULL 2.5s TRIALS (No Augmentation)
+                n_epochs = data.shape[0]
+                current_trial_ids = np.arange(global_trial_counter, global_trial_counter + n_epochs)
+                global_trial_counter += n_epochs
                 
-                # Get the remaining synchronized labels
+                # Labels for remaining synchronized epochs
                 kept_indices = [i for i, log in enumerate(epochs.drop_log) if not log]
                 
-                all_X.append(epochs.get_data())
+                all_X.append(data)
                 all_y_words.append(target_words_y[kept_indices])
                 all_y_conditions.append(target_conditions_y[kept_indices])
                 all_subject_ids.append(subject_id_array[kept_indices])
+                all_trial_ids.append(current_trial_ids)
                 
                 del rawdata
                 del epochs
@@ -153,17 +139,18 @@ def preprocess_inner_speech_data(data_dir: Path, save_dir: Path):
         y_words_stacked = np.concatenate(all_y_words)
         y_conditions_stacked = np.concatenate(all_y_conditions)
         subject_ids_stacked = np.concatenate(all_subject_ids)
+        trial_ids_stacked = np.concatenate(all_trial_ids)
         
         print(f"\nFinal Preprocessed Snapshot (Shape): {X_stacked.shape}")
-        print(f"Subjects included: {np.unique(subject_ids_stacked)}")
         
         os.makedirs(save_dir, exist_ok=True)
         np.save(save_dir / "X.npy", X_stacked)
         np.save(save_dir / "y_words.npy", y_words_stacked)
         np.save(save_dir / "y_conditions.npy", y_conditions_stacked)
         np.save(save_dir / "subject_ids.npy", subject_ids_stacked)
+        np.save(save_dir / "trial_ids.npy", trial_ids_stacked)
         
-        print(f"Data saved to {save_dir}/ (X.npy, y_words.npy, y_conditions.npy, subject_ids.npy)")
+        print(f"Data saved to {save_dir}/ (X.npy, y_words, etc., trial_ids.npy)")
     else:
         print("No speech data was successfully extracted.")
 
