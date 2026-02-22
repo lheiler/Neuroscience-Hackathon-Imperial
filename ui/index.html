@@ -303,6 +303,56 @@
         </div>
     </div>
 
+<!-- Live Session Stimulus Overlay -->
+<div id="live-session-overlay" class="modal-overlay hidden" style="z-index: 300;">
+    <div class="stimulus-stage glass-panel">
+        <button id="btn-exit-stimulus" class="btn-icon stimulus-exit-btn" title="Exit Stimulus Mode">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="stimulus-top">
+            <div class="stimulus-band flash-a" id="stim-top"></div>
+        </div>
+
+        <div class="stimulus-center">
+    <div class="stimulus-center">
+
+  <!-- Phase: Category Cards -->
+  <div id="stimulus-cards" class="stimulus-cards hidden" aria-label="Category Selection">
+    <div class="stimulus-prompt">What do you want to express?</div>
+    <div class="stim-card stim-card-top">⬆ Physical / Medical</div>
+    <div class="stim-card stim-card-bottom">⬇ Social & Emotional</div>
+    <div class="stim-card stim-card-left">⬅ Daily Needs</div>
+    <div class="stim-card stim-card-right">➡ Express & Decide</div>
+  </div>
+
+  <!-- Phase: LLM Loading -->
+  <div id="llm-loading" class="llm-loading hidden" aria-label="Gathering your thoughts">
+    <div class="llm-loading-box">
+      <div class="llm-spinner"></div>
+      <div class="llm-loading-text">Gathering your thoughts…</div>
+    </div>
+  </div>
+
+  <!-- Phase: Proposed Questions -->
+  <div id="question-cards" class="stimulus-cards hidden" aria-label="Proposed Questions">
+    <div class="stimulus-prompt">Which question do you want to ask?</div>
+    <div class="stim-card stim-card-top" id="q-top">⬆ …</div>
+    <div class="stim-card stim-card-bottom" id="q-bottom">⬇ …</div>
+    <div class="stim-card stim-card-left" id="q-left">⬅ …</div>
+    <div class="stim-card stim-card-right" id="q-right">➡ …</div>
+  </div>
+
+</div>
+
+        <div class="stimulus-bottom">
+            <div class="stimulus-band flash-b" id="stim-bottom"></div>
+        </div>
+    </div>
+</div>
+
+
+
     <!-- Calibration Loader Overlay -->
     <div id="calibration-overlay" class="modal-overlay hidden" style="z-index: 200;">
         <div class="calibration-box glass-panel text-center">
