@@ -2,16 +2,16 @@
     "calibration_status": "calibrated",
     "headset": "unicorn_8",
     "headsetDisplay": "Unicorn Hybrid Black",
-    "id": "1771753309801",
+    "id": "1771759849460",
     "isActive": true,
-    "lastActive": "09:41 AM",
-    "name": "Max Fischer",
+    "lastActive": "11:30 AM",
+    "name": "Test",
     "usage_data": {
         "avg_accuracy": 0,
         "last_prediction": "--",
         "sessions": 0,
         "total_time_min": 0
     },
-    "weights_path": "weights/1771753309801_weights.npy",
+    "weights_path": "weights/1771759849460_weights.npy",
     "weights_status": "Weights Initialized"
 }
