@@ -4,7 +4,7 @@
     "id": "mock_jane_112233",
     "isActive": true,
     "lastActive": "02:15 PM",
-    "name": "Jane Doe (Mock)",
+    "name": "Jane Doe",
     "usage_data": {
         "avg_accuracy": 82.4,
         "last_prediction": "Adelante",
