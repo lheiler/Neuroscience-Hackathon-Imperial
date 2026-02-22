@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cool Simple Frontend</title>
+  <style>
+    :root {
+      --bg1: #0b1020;
+      --bg2: #0a2a2a;
+      --card: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.12);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.68);
+      --glow: rgba(85, 255, 220, 0.25);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      background: radial-gradient(1200px 600px at 20% 10%, rgba(85,255,220,0.12), transparent 60%),
+                  radial-gradient(900px 500px at 80% 30%, rgba(100,120,255,0.14), transparent 55%),
+                  linear-gradient(135deg, var(--bg1), var(--bg2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 16px;
+    }
+
+    /* Floating blobs for a “cool” feel */
+    .blob {
+      position: fixed;
+      inset: auto;
+      width: 380px;
+      height: 380px;
+      border-radius: 999px;
+      filter: blur(40px);
+      opacity: 0.35;
+      pointer-events: none;
+      animation: drift 10s ease-in-out infinite alternate;
+      z-index: 0;
+    }
+    .blob.one { left: -120px; top: -120px; background: rgba(85,255,220,0.35); }
+    .blob.two { right: -160px; bottom: -160px; background: rgba(100,120,255,0.35); animation-duration: 12s; }
+
+    @keyframes drift {
+      from { transform: translate3d(0,0,0) scale(1); }
+      to   { transform: translate3d(40px, 30px, 0) scale(1.06); }
+    }
+
+    .wrap {
+      width: min(900px, 100%);
+      position: relative;
+      z-index: 1;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .title {
+      font-size: clamp(22px, 3.2vw, 34px);
+      letter-spacing: 0.3px;
+      margin: 0;
+      line-height: 1.1;
+      text-shadow: 0 0 18px var(--glow);
+    }
+
+    .badge {
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      padding: 6px 10px;
+      border-radius: 999px;
+      backdrop-filter: blur(10px);
+      white-space: nowrap;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 18px;
+      padding: 22px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 60px rgba(0,0,0,0.35);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      background: radial-gradient(400px 160px at 30% 10%, rgba(85,255,220,0.14), transparent 60%),
+                  radial-gradient(420px 180px at 70% 0%, rgba(100,120,255,0.14), transparent 60%);
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      min-height: 280px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 10px;
+    }
+
+    .placeholder {
+      max-width: 62ch;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.6;
+      margin: 0 0 14px 0;
+      animation: fadeIn 500ms ease-out both;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Loader */
+    .loader {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 10px;
+      user-select: none;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.75);
+      animation: bounce 900ms ease-in-out infinite;
+      box-shadow: 0 0 18px rgba(85,255,220,0.18);
+    }
+    .dot:nth-child(2) { animation-delay: 120ms; opacity: 0.8; }
+    .dot:nth-child(3) { animation-delay: 240ms; opacity: 0.65; }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    /* Response area */
+    .response {
+      width: 100%;
+      text-align: left;
+      display: none; /* shown after 4s + response */
+      animation: rise 450ms ease-out both;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .response h2 {
+      font-size: 14px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.7);
+      margin: 0 0 10px 0;
+    }
+
+    .bubble {
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(0,0,0,0.18);
+      border-radius: 16px;
+      padding: 16px 16px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+    }
+
+    .error {
+      color: rgba(255, 180, 180, 0.95);
+      border-color: rgba(255, 180, 180, 0.35);
+    }
+
+    /* Small footer hint */
+    .hint {
+      margin-top: 12px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <div class="blob one"></div>
+  <div class="blob two"></div>
+
+  <div class="wrap">
+    <header>
+      <h1 class="title" id="pageTitle">✨ Placeholder Title</h1>
+      <div class="badge">One-page UI • Express + OpenAI</div>
+    </header>
+
+    <div class="card">
+      <div class="content">
+        <!-- Placeholder + loader block -->
+        <div id="loadingBlock">
+          <p class="placeholder" id="placeholderText">
+            Placeholder text goes here. This will disappear after 4 seconds, then your AI response will appear.
+          </p>
+
+          <div class="loader" aria-label="Loading">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </div>
+        </div>
+
+        <!-- Response block -->
+        <div class="response" id="responseBlock">
+          <h2>Response</h2>
+          <div class="bubble" id="responseText"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hint">Tip: edit the hard-coded prompt inside the script.</div>
+  </div>
+
+  <script>
+    // ==============================
+    // ✅ EDIT THESE 3 THINGS
+    // ==============================
+
+    // 1) Change your page title text
+    const PAGE_TITLE = "✨ Thinking out loud...";
+
+    // 2) Change your placeholder text
+    const PLACEHOLDER_TEXT = "Gathering your thoughts";
+
+    // 3) Change the hard-coded prompt sent to your backend
+    const HARDCODED_PROMPT = `
+You are an assistive communication system for a person with ALS.
+
+The person can only produce four decoded EEG words:
+up, down, left, right.
+
+These words refer ONLY to physical positioning or directional needs
+(e.g., adjust my bed up, turn me left, move my wheelchair right).
+
+Task:
+Generate 4 short, realistic sentences (max 12 words)
+that a caregiver could immediately act on.
+
+The sentences should be in the format of 1) 2) 3) 4) with each sentence on its own line.
+
+Rules:
+- The sentence MUST include at least one of these words exactly: up, down, left, right.
+- It must refer to a physical or practical need.
+- No metaphors.
+- No abstract meanings (no "safe space", no emotional interpretation).
+- No guessing beyond physical movement or positioning.
+
+Output only the sentence.
+`;
+
+    // Optional: if your backend URL changes, edit this:
+    const API_URL = "http://localhost:3001/api/ask";
+
+    // ==============================
+    // App logic
+    // ==============================
+    const pageTitleEl = document.getElementById("pageTitle");
+    const placeholderTextEl = document.getElementById("placeholderText");
+    const loadingBlockEl = document.getElementById("loadingBlock");
+    const responseBlockEl = document.getElementById("responseBlock");
+    const responseTextEl = document.getElementById("responseText");
+
+    pageTitleEl.textContent = PAGE_TITLE;
+    placeholderTextEl.textContent = PLACEHOLDER_TEXT;
+
+    // Force placeholder to stay for 4 seconds, even if API returns earlier
+    const fourSecondDelay = () => new Promise(resolve => setTimeout(resolve, 4000));
+
+    async function askBackend() {
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: HARDCODED_PROMPT })
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Backend error (${res.status}): ${text}`);
+        }
+
+        const data = await res.json();
+        return data.reply ?? "(No reply field returned.)";
+      } catch (err) {
+        return { error: true, message: err.message || String(err) };
+      }
+    }
+
+    (async function init() {
+      // start both in parallel
+      const [result] = await Promise.all([
+        askBackend(),
+        fourSecondDelay()
+      ]);
+
+      // hide placeholder + loader after 4 seconds
+      loadingBlockEl.style.display = "none";
+
+      // show response
+      responseBlockEl.style.display = "block";
+
+      if (typeof result === "object" && result?.error) {
+        responseTextEl.textContent = result.message;
+        responseTextEl.classList.add("error");
+      } else {
+        responseTextEl.textContent = result;
+      }
+    })();
+  </script>
+</body>
+</html>
