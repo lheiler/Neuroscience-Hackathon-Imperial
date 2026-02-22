@@ -5,6 +5,8 @@ DIRECTION_MAP = {1: 'up', 2: 'down', 3: 'left', 4: 'right'}
 EEG_COLS = list(range(1, 9))   # columns 1–8 (Ch01–Ch08)
 TRIG_COL = 9                    # column 9 (Ch09)
 
+
+
 def split_epochs(csv_path):
     df = pd.read_csv(csv_path, header=0)  # has header row
     
