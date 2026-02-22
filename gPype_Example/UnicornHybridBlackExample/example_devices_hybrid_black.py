@@ -38,8 +38,11 @@ if __name__ == "__main__":
     # EEG is 8 channels (0..7), so use channel=8 for trigger channel.
     mk = gp.TimeSeriesScope.Markers
     markers = [
-        mk(color="#00aa00", label="START (dot)", channel=8, value=1),
-        mk(color="#ff0000", label="END (pre-next)", channel=8, value=2),
+        mk(color="#00aa00", label="UP",    channel=8, value=1),
+        mk(color="#0000ff", label="DOWN",  channel=8, value=2),
+        mk(color="#ffaa00", label="LEFT",  channel=8, value=3),
+        mk(color="#ff00ff", label="RIGHT", channel=8, value=4),
+        mk(color="#ff0000", label="END",   channel=8, value=0),
     ]
 
     # === REAL-TIME VISUALIZATION ===

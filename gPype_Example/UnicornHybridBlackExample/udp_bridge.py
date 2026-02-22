@@ -41,8 +41,8 @@ def trigger():
   except Exception:
     return jsonify({"ok": False, "error": "'value' must be an integer (1 or 2)."}), 400
 
-  if value_int not in (1, 2):
-    return jsonify({"ok": False, "error": "'value' must be 1 (START) or 2 (END)."}), 400
+  if value_int not in (0, 1, 2, 3, 4):
+    return jsonify({"ok": False, "error": "'value' must be 0-4"}), 400
 
   try:
     _send_udp_int(value_int)

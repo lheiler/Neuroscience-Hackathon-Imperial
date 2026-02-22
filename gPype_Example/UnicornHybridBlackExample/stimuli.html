@@ -59,10 +59,10 @@
 
     // Directions (random each onset)
     const directions = [
-      { name: "up",    symbol: "↑" },
-      { name: "down",  symbol: "↓" },
-      { name: "left",  symbol: "←" },
-      { name: "right", symbol: "→" },
+      { name: "up",    symbol: "↑", triggerValue: 1 },
+      { name: "down",  symbol: "↓", triggerValue: 2 },
+      { name: "left",  symbol: "←", triggerValue: 3 },
+      { name: "right", symbol: "→", triggerValue: 4 },
     ];
 
     function randomDirection() {
@@ -112,7 +112,7 @@
           // === CUE ONSET ===
           cueEl.textContent = dir.symbol;
           cueEl.style.display = "block";
-          sendTrigger(1, { direction: dir.name }); // START (optionally include direction)
+          sendTrigger(dir.triggerValue); // START (encode direction with trigger magnitude)
 
           // Hide cue after dotOnMs (visual only)
           setTimeout(() => {
@@ -121,7 +121,7 @@
 
           // === END just before the next onset ===
           setTimeout(() => {
-            sendTrigger(2); // END
+            sendTrigger(0); // END (always 0)
           }, Math.max(0, dotIntervalMs - leadMs));
 
           cycle++;
