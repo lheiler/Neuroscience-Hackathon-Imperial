@@ -6,7 +6,7 @@ from pyriemann.utils.mean import mean_covariance
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.base import BaseEstimator, TransformerMixin
-from scipy.signal import butter, sosfiltfilt
+from scipy.signal import butter, sosfilt
 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -29,8 +29,9 @@ class FilterBankRiemannian(BaseEstimator, TransformerMixin):
         ]
 
     def _bandpass_filter(self, data, lowcut, highcut, order=4):
+        # Strictly Causal Filtering for Real-Time Demo Readiness
         sos = butter(order, [lowcut, highcut], btype='band', fs=self.sfreq, output='sos')
-        return sosfiltfilt(sos, data, axis=-1)
+        return sosfilt(sos, data, axis=-1)
 
     def fit(self, X, y=None):
         if self.verbose:

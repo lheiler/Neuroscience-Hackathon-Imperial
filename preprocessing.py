@@ -25,7 +25,7 @@ def preprocess_inner_speech_data(data_dir: Path, save_dir: Path):
     reaching 82.4% accuracy. Uses strict filtering and artifact rejection.
     """
     # Processing Variables: Study uses Sub 02, 03, 05, 06. Excludes 04.
-    N_Subj_arr = [2, 3, 5, 6]
+    N_Subj_arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]    
     N_block_arr = range(1, 4)
     
     # 1. FIR Bandpass (1.0 - 100 Hz) and Notch (50 Hz)
@@ -59,9 +59,9 @@ def preprocess_inner_speech_data(data_dir: Path, save_dir: Path):
                 rawdata = mne.io.read_raw_bdf(input_fname=bdf_path, preload=True, verbose="WARNING")
                 rawdata.set_eeg_reference(ref_channels='average', verbose="WARNING")
                 
-                # Applying Notch and FIR Bandpass
-                rawdata.notch_filter(freqs=NOTCH_FREQ, verbose="WARNING", fir_design='firwin')
-                rawdata.filter(LOW_CUT, HIGH_CUT, verbose="WARNING", fir_design='firwin')
+                # 1. Causal FIR Filtering (Minimum phase for zero-latency simulation)
+                rawdata.notch_filter(freqs=NOTCH_FREQ, verbose="WARNING", fir_design='firwin', phase='minimum')
+                rawdata.filter(LOW_CUT, HIGH_CUT, verbose="WARNING", fir_design='firwin', phase='minimum')
                 
                 # Extract Events FIRST
                 print("    Extracting Events...")
@@ -116,8 +116,9 @@ def preprocess_inner_speech_data(data_dir: Path, save_dir: Path):
 
                 # 6. SAVE FULL 2.5s TRIALS (No Augmentation)
                 n_epochs = data.shape[0]
-                current_trial_ids = np.arange(global_trial_counter, global_trial_counter + n_epochs)
-                global_trial_counter += n_epochs
+                # Enforce Session-Level Grouping: Use SubjectID + BlockID as the group index
+                session_group_id = int(f"{n_s}{n_b}")
+                current_session_ids = np.full(n_epochs, session_group_id, dtype=int)
                 
                 # Labels for remaining synchronized epochs
                 kept_indices = [i for i, log in enumerate(epochs.drop_log) if not log]
@@ -126,7 +127,7 @@ def preprocess_inner_speech_data(data_dir: Path, save_dir: Path):
                 all_y_words.append(target_words_y[kept_indices])
                 all_y_conditions.append(target_conditions_y[kept_indices])
                 all_subject_ids.append(subject_id_array[kept_indices])
-                all_trial_ids.append(current_trial_ids)
+                all_trial_ids.append(current_session_ids)
                 
                 del rawdata
                 del epochs

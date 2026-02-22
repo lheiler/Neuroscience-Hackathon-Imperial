@@ -17,7 +17,7 @@ def load_raw_data(data_dir):
     sub_ids = np.load(os.path.join(data_dir, "subject_ids.npy"))
     trial_ids = np.load(os.path.join(data_dir, "trial_ids.npy"))
     
-    # Filter Pronounced Speech (Condition 0) to show the 41.7% baseline success
+    # Filter Pronounced Speech (Condition 0) for Unicorn demo baseline
     mask = (y_conds == 0)
     return X_raw[mask], y_words[mask], sub_ids[mask], trial_ids[mask]
 
@@ -25,15 +25,28 @@ def run_riemannian_eval(subject_id, X_raw, y, trial_ids):
     print(f"\n[SUBJECT {subject_id:02d}] FilterBank Riemannian | Focal Subset")
     print("-" * 50)
     
-    # SPATIAL REDUCTION: Focus on 22 focal language/executive channels
-    subset = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 96, 98, 100, 102, 105, 107, 109, 111, 114, 116, 120, 123]
+    # UNICORN HEADSET SIMULATION (8 Channels)
+    # Mapping: Fz:A1, C3:B9, Cz:A2, C4:B24, Pz:A19, PO7:D5, Oz:A32, PO8:D28
+    subset = [0, 40, 1, 55, 18, 100, 31, 123]
     X_sliced = X_raw[:, subset, :]
     
-    sgkf = StratifiedGroupKFold(n_splits=10, shuffle=True, random_state=42)
+    print(f"  Unicorn Headset Simulation: {X_sliced.shape[1]} channels active")
+    # Dynamically adjust splits based on available groups to avoid empty folds
+    unique_groups = len(np.unique(trial_ids))
+    n_splits = min(10, unique_groups)
+    
+    if n_splits < 2:
+        print(f"  Warning: Only {unique_groups} session(s). Cross-validation requires at least 2.")
+        return 0, 0
+
+    sgkf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=42)
     fold_accuracies = []
     train_accuracies = []
     
     for fold, (train_idx, val_idx) in enumerate(sgkf.split(X_sliced, y, groups=trial_ids)):
+        if len(val_idx) == 0:
+            continue
+            
         X_train, y_train = X_sliced[train_idx], y[train_idx]
         X_val, y_val = X_sliced[val_idx], y[val_idx]
 
