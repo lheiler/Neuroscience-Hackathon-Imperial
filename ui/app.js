@@ -26,6 +26,26 @@ const btnDashStartSession = document.getElementById('btn-dash-start-session');
 const btnGoDashboard = document.getElementById('btn-go-dashboard');
 const btnBackToProfiles = document.getElementById('btn-back-to-profiles');
 const btnDeleteProfile = document.getElementById('btn-delete-profile');
+// Live Session Stimulus Elements
+const liveSessionOverlay = document.getElementById('live-session-overlay');
+
+const btnExitStimulus = document.getElementById('btn-exit-stimulus');
+const stimulusCards = document.getElementById('stimulus-cards');
+const stimulusStage = liveSessionOverlay ? liveSessionOverlay.querySelector('.stimulus-stage') : null;
+const llmLoading = document.getElementById('llm-loading');
+const questionCards = document.getElementById('question-cards');
+
+const qTop = document.getElementById('q-top');
+const qBottom = document.getElementById('q-bottom');
+const qLeft = document.getElementById('q-left');
+const qRight = document.getElementById('q-right');
+
+let cardsPhaseTimeout = null;     // 10s categories
+let llmPhaseTimeout = null;       // 3s loading minimum
+let stimulusPhaseTimeout = null; // switches stimulus -> cards
+
+let stimulusInterval = null;
+let stimulusTimeout = null;
 
 
 // Helper to get initials for avatar
@@ -186,6 +206,33 @@ async function fetchProfiles(retries = 3) {
             console.error('Error fetching profiles:', error);
             profilesGrid.innerHTML = '<div style="color: var(--danger); padding: 24px;">Cannot connect to backend server. Make sure server.py is running.</div>';
         }
+    }
+}
+
+async function fetchProposedQuestions(category = "Physical / Medical") {
+    try {
+        const res = await fetch('/api/llm/questions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category })
+        });
+
+        if (!res.ok) throw new Error(`Bad response: ${res.status}`);
+        const data = await res.json();
+
+        if (!data || !Array.isArray(data.questions) || data.questions.length < 4) {
+            throw new Error("Invalid questions payload");
+        }
+
+        return data.questions.slice(0, 4);
+    } catch (e) {
+        console.warn('[LLM] Falling back to mock questions:', e);
+        return [
+            "I’m in pain — can you help me get comfortable?",
+            "Can we check my breathing / ventilation settings?",
+            "I feel unwell — can we review my medication schedule?",
+            "Can you reposition my head/neck and check pressure areas?"
+        ];
     }
 }
 
@@ -363,6 +410,119 @@ if (btnDeleteProfile) {
 // ==========================================
 // User Flow: Calibration Stimulus (VEP)
 // ==========================================
+// ==========================================
+// Live Session Stimulus Mode (minimal)
+// ==========================================
+function startStimulusMode(durationMs = 60000, returnView = 'dashboard') {
+    if (!liveSessionOverlay) {
+        console.warn('[Stimulus] Overlay element not found (#live-session-overlay).');
+        return;
+    }
+
+    // Reset everything
+    if (stimulusStage) stimulusStage.classList.remove('show-cards');
+    if (stimulusCards) stimulusCards.classList.add('hidden');
+
+    if (llmLoading) llmLoading.classList.add('hidden');
+    if (questionCards) questionCards.classList.add('hidden');
+
+    // Show overlay
+    liveSessionOverlay.classList.remove('hidden');
+
+    // Clear timers
+    if (stimulusTimeout) clearTimeout(stimulusTimeout);
+    if (stimulusPhaseTimeout) clearTimeout(stimulusPhaseTimeout);
+    if (cardsPhaseTimeout) clearTimeout(cardsPhaseTimeout);
+    if (llmPhaseTimeout) clearTimeout(llmPhaseTimeout);
+
+    // Phase 2: after 10s, show category cards
+    stimulusPhaseTimeout = setTimeout(() => {
+        if (stimulusStage) stimulusStage.classList.add('show-cards');
+        if (stimulusCards) stimulusCards.classList.remove('hidden');
+
+        // Phase 3: keep category cards up for 10s, then "assume Physical/Medical"
+        cardsPhaseTimeout = setTimeout(async () => {
+            // Hide categories
+            if (stimulusCards) stimulusCards.classList.add('hidden');
+
+            // Show loading overlay
+            if (llmLoading) llmLoading.classList.remove('hidden');
+
+            // Kick off LLM request immediately
+            const llmPromise = fetchProposedQuestions("Physical / Medical");
+
+            // Keep the loading visible for at least 3 seconds (demo pacing)
+            const minDelay = new Promise(resolve => {
+                llmPhaseTimeout = setTimeout(resolve, 3000);
+            });
+
+            const [questions] = await Promise.all([llmPromise, minDelay]);
+
+            // Hide loading
+            if (llmLoading) llmLoading.classList.add('hidden');
+
+            // Populate question cards (top/bottom/left/right)
+            if (qTop) qTop.textContent = `⬆ ${questions[0]}`;
+            if (qBottom) qBottom.textContent = `⬇ ${questions[1]}`;
+            if (qLeft) qLeft.textContent = `⬅ ${questions[2]}`;
+            if (qRight) qRight.textContent = `➡ ${questions[3]}`;
+
+            // Show question cards
+            if (questionCards) questionCards.classList.remove('hidden');
+
+        }, 10000);
+
+    }, 10000);
+
+    // Auto-exit after duration
+    stimulusTimeout = setTimeout(() => {
+        stopStimulusMode(returnView);
+    }, durationMs);
+}
+
+function stopStimulusMode(returnView = 'dashboard') {
+    if (stimulusTimeout) clearTimeout(stimulusTimeout);
+    stimulusTimeout = null;
+
+    if (stimulusPhaseTimeout) clearTimeout(stimulusPhaseTimeout);
+    stimulusPhaseTimeout = null;
+
+    // Reset overlay back to bars-only for next time
+    if (stimulusStage) stimulusStage.classList.remove('show-cards');
+    if (stimulusCards) stimulusCards.classList.add('hidden');
+
+    if (liveSessionOverlay) liveSessionOverlay.classList.add('hidden');
+
+    switchView(returnView);
+
+    if (cardsPhaseTimeout) clearTimeout(cardsPhaseTimeout);
+cardsPhaseTimeout = null;
+
+    if (llmPhaseTimeout) clearTimeout(llmPhaseTimeout);
+llmPhaseTimeout = null;
+
+
+    if (llmLoading) llmLoading.classList.add('hidden');
+if (questionCards) questionCards.classList.add('hidden');
+}
+
+// Exit button (discreet X)
+if (btnExitStimulus) {
+    btnExitStimulus.addEventListener('click', () => stopStimulusMode('dashboard'));
+} else {
+    console.warn('[Stimulus] Exit button not found (#btn-exit-stimulus).');
+}
+
+// ESC to exit
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && liveSessionOverlay && !liveSessionOverlay.classList.contains('hidden')) {
+        stopStimulusMode('dashboard');
+    }
+});
+const calibOverlay = document.getElementById('calibration-overlay');
+const calibProgress = document.getElementById('calib-progress');
+const calibTitle = document.getElementById('calib-title');
+const calibDesc = document.getElementById('calib-desc');
 const calibrationSetupModal = document.getElementById('calibration-setup-modal');
 const btnCloseCalSetup = document.getElementById('btn-close-cal-setup');
 const btnStartStimulus = document.getElementById('btn-start-stimulus');
@@ -559,8 +719,24 @@ function initiateSessionFlow() {
     if (!activeProf) return;
     if (activeProf.calibration_status !== 'calibrated') return; // Strict block
 
-    // Simply transition to dashboard for now, or we could show a brief loading state
-    switchView('dashboard');
+        // Optional: quick “connecting” splash (re-using your loader)
+    calibOverlay.classList.remove('hidden');
+    calibTitle.innerText = "Starting Live Session...";
+    calibTitle.style.color = "var(--primary)";
+    calibDesc.innerText = "Launching visual stimulus mode...";
+    calibProgress.style.width = '0%';
+
+    setTimeout(() => {
+        calibProgress.style.width = '100%';
+        setTimeout(() => {
+            calibOverlay.classList.add('hidden');
+
+            // IMPORTANT: This is the new behavior:
+            // Launch 60s stimulus page so the ALS user can “ping” via evoked response
+            startStimulusMode(60000, 'dashboard');
+
+        }, 350);
+    }, 650);
 }
 
 btnStartSession.addEventListener('click', initiateSessionFlow);

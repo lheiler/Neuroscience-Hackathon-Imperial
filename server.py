@@ -3,6 +3,15 @@ from flask_cors import CORS
 import os
 import json
 import numpy as np
+import os
+from openai import OpenAI
+from flask import request, jsonify
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # loads variables from .env
+
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 app = Flask(__name__, static_folder='ui')
 CORS(app)
@@ -138,6 +147,81 @@ def save_profile():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/llm/questions", methods=["POST"])
+def llm_questions():
+    # 🔒 Hardcoded for demo: always medical / physical
+    system = """
+You generate EXACTLY 4 short messages for an ALS patient using an assistive communication device.
+
+The messages MUST be things an ALS patient would realistically ask a caregiver *right now*.
+They MUST be concrete, immediate, and caregiver-actionable.
+
+Allowed themes (choose from these only):
+- pain/discomfort
+- repositioning/pressure relief
+- breathing/ventilator/mask adjustment
+- suction/saliva/choking/cough support
+- hydration/feeding/tube feeding
+- toileting/urinal/diaper/cleanup
+- temperature/blanket/clothing adjustment
+- medication timing/need
+- urgent help / call nurse / emergency
+
+STRICT RULES:
+- Return exactly 4 lines.
+- Each line is a single question or request (no lists, no numbering, no bullets).
+- Keep each line <= 80 characters if possible.
+- Do NOT mention ALS, diagnosis, hospitals, or speculation.
+- Do NOT suggest emotional therapy, life advice, or non-caregiver actions.
+- Do NOT include disclaimers or extra text.
+- Use simple, clear language.
+""".strip()
+
+    user = """
+Generate 4 distinct caregiver-actionable questions/requests from the allowed themes.
+No numbering. Plain text. 4 lines only.
+""".strip()
+
+    try:
+        resp = client.responses.create(
+            model="gpt-4.1-mini",
+            input=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        )
+
+        text = resp.output_text.strip()
+
+        lines = [
+            ln.strip().lstrip("-•0123456789. ").strip()
+            for ln in text.splitlines()
+            if ln.strip()
+        ]
+
+        questions = (lines + [
+            "I’m in pain — can you help me get comfortable?",
+            "Can we check my breathing support?",
+            "Can we review my medication schedule?",
+            "Can you reposition me, please?"
+        ])[:4]
+
+        return jsonify({"questions": questions})
+
+    except Exception as e:
+        print("LLM ERROR:", e)
+
+        # Safe fallback
+        return jsonify({
+            "questions": [
+                "I’m in pain — can you help me get comfortable?",
+                "Can we check my breathing support?",
+                "Can we review my medication schedule?",
+                "Can you reposition me, please?"
+            ]
+        })
 
 # ----------------------------
 # Run Server
