@@ -1,0 +1,17 @@
+{
+    "id": "1771753392246",
+    "name": "\u00dc",
+    "headset": "emotiv_epoc_14",
+    "headsetDisplay": "Emotiv EPOC X",
+    "lastActive": "09:43 AM",
+    "isActive": true,
+    "calibration_status": "uncalibrated",
+    "usage_data": {
+        "total_time_min": 0,
+        "sessions": 0,
+        "avg_accuracy": 0,
+        "last_prediction": "--"
+    },
+    "weights_path": "weights/1771753392246_weights.npy",
+    "weights_status": "Weights Initialized"
+}

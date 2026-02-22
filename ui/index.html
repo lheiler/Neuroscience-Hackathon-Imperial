@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thinking Out Loud - Profile Management</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Background Decor -->
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+
+    <div class="app-container">
+
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar glass-panel">
+            <div class="logo">
+                <i class="fa-solid fa-brain"></i>
+                <span>Thinking Out Loud</span>
+            </div>
+            <nav>
+                <ul>
+                    <li class="active"><a href="#" id="link-profiles"><i class="fa-solid fa-users"></i> Profiles</a>
+                    </li>
+                    <li><a href="#" id="link-dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+                    <li><a href="#" id="link-headset"><i class="fa-solid fa-satellite-dish"></i> Headset Link</a></li>
+                    <li><a href="#" id="link-settings"><i class="fa-solid fa-gear"></i> Settings</a></li>
+                </ul>
+            </nav>
+            <div class="status-indicator">
+                <div class="pulse-dot"></div>
+                <span>Unicorn Disconnected</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+
+            <!-- ====== PROFILES VIEW ====== -->
+            <div id="view-profiles" class="view-section">
+                <header class="header">
+                    <div>
+                        <h1>Profile Management</h1>
+                        <p class="subtitle">Select or create a subject profile to map decoding model weights.</p>
+                    </div>
+                    <button id="btn-create-new" class="btn btn-primary">
+                        <i class="fa-solid fa-plus"></i> New Profile
+                    </button>
+                </header>
+
+                <div class="dashboard-layout">
+                    <div id="profiles-grid" class="profiles-grid">
+                        <!-- Profile Cards dynamically inserted here -->
+                    </div>
+
+                    <aside id="active-dashboard" class="dashboard-panel glass-panel hidden">
+                        <div class="panel-header">
+                            <h2>Target Session</h2>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span id="active-badge" class="badge">--</span>
+                                <button id="btn-delete-profile" class="btn-icon" title="Delete Profile"
+                                    style="color: var(--danger);"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="active-profile-info">
+                            <div id="active-avatar" class="avatar lg-avatar">--</div>
+                            <h3 id="active-name" class="active-name">Select Profile</h3>
+                            <p id="active-headset" class="active-headset"><i class="fa-solid fa-headset"></i> --</p>
+                        </div>
+
+                        <div id="calibration-warning" class="alert-box warning mb-24 hidden">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span>Profile requires calibration before live decoding.</span>
+                        </div>
+
+                        <div class="flex-col gap-16" id="profile-stats-grid">
+                            <div class="summary-stat-row">
+                                <div class="summary-stat-label">
+                                    <i class="fa-solid fa-clock"></i>
+                                    <span>Total Time</span>
+                                </div>
+                                <div class="summary-stat-value" id="stat-time">0m</div>
+                            </div>
+                            <div class="summary-stat-row">
+                                <div class="summary-stat-label">
+                                    <i class="fa-solid fa-bullseye"></i>
+                                    <span>Avg Accuracy</span>
+                                </div>
+                                <div class="summary-stat-value" id="stat-acc">0%</div>
+                            </div>
+                        </div>
+
+                        <div class="action-wrapper flex-col gap-16">
+                            <button class="btn btn-primary w-100 hidden" id="btn-calibrate">
+                                <i class="fa-solid fa-crosshairs"></i> Calibrate Profile
+                            </button>
+                            <button class="btn btn-success w-100 hidden" id="btn-start-session">
+                                <i class="fa-solid fa-satellite-dish"></i> Start Live Session
+                            </button>
+                            <button class="btn btn-secondary w-100 hidden" id="btn-go-dashboard"
+                                style="margin-top: 8px;">
+                                <i class="fa-solid fa-chart-line"></i> View Full Analytics
+                            </button>
+                        </div>
+                    </aside>
+                </div>
+            </div>
+
+            <!-- ====== DASHBOARD VIEW ====== -->
+            <div id="view-dashboard" class="view-section hidden">
+                <header class="header">
+                    <div>
+                        <h1>Analytics Dashboard</h1>
+                        <p class="subtitle" id="dash-subtitle">Viewing data for: --</p>
+                    </div>
+                    <button class="btn btn-primary" id="btn-dash-start-session">
+                        <i class="fa-solid fa-play"></i> Start Live Session
+                    </button>
+                </header>
+
+                <div class="huge-stats-grid">
+                    <div class="glass-panel huge-stat-card">
+                        <div class="huge-stat-icon" style="color: var(--accent);"><i class="fa-solid fa-clock"></i>
+                        </div>
+                        <div class="huge-stat-content">
+                            <div class="huge-stat-value" id="dash-time">0<span class="unit">m</span></div>
+                            <div class="huge-stat-label">Total Time in BCI</div>
+                        </div>
+                    </div>
+                    <div class="glass-panel huge-stat-card">
+                        <div class="huge-stat-icon" style="color: var(--success);"><i class="fa-solid fa-bullseye"></i>
+                        </div>
+                        <div class="huge-stat-content">
+                            <div class="huge-stat-value" id="dash-acc">0<span class="unit">%</span></div>
+                            <div class="huge-stat-label">Average Decoding Accuracy</div>
+                        </div>
+                    </div>
+                    <div class="glass-panel huge-stat-card">
+                        <div class="huge-stat-icon" style="color: var(--primary);"><i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <div class="huge-stat-content">
+                            <div class="huge-stat-value" id="dash-sessions">0</div>
+                            <div class="huge-stat-label">Completed Sessions</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-grid mt-24">
+                    <div class="glass-panel chart-card chart-wide">
+                        <div class="panel-header">
+                            <h2>Accuracy Progression</h2>
+                            <i class="fa-solid fa-arrow-trend-up" style="color: var(--success);"></i>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="accuracyChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel chart-card">
+                        <div class="panel-header">
+                            <h2>Command Distribution</h2>
+                            <i class="fa-solid fa-chart-pie" style="color: var(--text-muted);"></i>
+                        </div>
+                        <div class="chart-container pie-container">
+                            <canvas id="distributionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State for Dashboard when no profile is active -->
+                <div id="dash-empty-state" class="empty-state hidden">
+                    <i class="fa-solid fa-user-xmark huge-icon"></i>
+                    <h2>No Active Profile Selected</h2>
+                    <p>Please return to the Profiles view and select a subject to view their analytics.</p>
+                    <button class="btn btn-secondary mt-24" id="btn-back-to-profiles">Go To Profiles</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Create Profile Modal -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <div class="modal glass-panel">
+            <div class="modal-header">
+                <h2>Initialize New Profile</h2>
+                <button id="btn-close-modal" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="profile-form" class="modal-body">
+                <div class="form-group">
+                    <label for="subject-name">Subject Name</label>
+                    <input type="text" id="subject-name" placeholder="e.g. Subject 07" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Hardware Configuration</label>
+                    <div class="custom-select-wrapper">
+                        <select id="headset-config" required>
+                            <option value="" disabled selected>Select Headset Type</option>
+                            <option value="unicorn_8">Unicorn Hybrid Black</option>
+                            <option value="emotiv_epoc_14">Emotiv EPOC X</option>
+                            <option value="emotiv_insight_5">Emotiv Insight 5</option>
+                            <option value="neurosity_8">Neurosity Crown</option>
+                            <option value="openbci_16">OpenBCI Ultracortex</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down select-icon"></i>
+                    </div>
+                    <p class="helper-text">Ensure the physical headset matches this channel layout.</p>
+                </div>
+
+            </form>
+
+            <div class="modal-footer">
+                <button id="btn-cancel-modal" class="btn btn-secondary">Cancel</button>
+                <button id="btn-save-profile" class="btn btn-primary" type="submit" form="profile-form"><i
+                        class="fa-solid fa-bolt"></i> Initialize Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calibration Loader Overlay -->
+    <div id="calibration-overlay" class="modal-overlay hidden" style="z-index: 200;">
+        <div class="calibration-box glass-panel text-center">
+            <div class="spinner mb-16"></div>
+            <h2 id="calib-title">Calibrating Headset...</h2>
+            <p class="text-muted mt-8" id="calib-desc">Please remain still and follow the on-screen prompts.</p>
+            <div class="progress-bar mt-24">
+                <div class="progress-fill" id="calib-progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
