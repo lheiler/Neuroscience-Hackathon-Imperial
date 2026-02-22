@@ -60,10 +60,14 @@ function renderProfiles() {
 
         const initials = getInitials(profile.name);
 
+        const isCalibrated = profile.calibration_status === 'calibrated';
+        const badgeText = isCalibrated ? 'Calibrated' : 'Not Calibrated';
+        const badgeClass = isCalibrated ? 'badge-success' : 'badge-danger';
+
         card.innerHTML = `
+            ${profile.isActive ? '<i class="fa-solid fa-check-circle active-check"></i>' : ''}
             <div class="card-header">
                 <div class="avatar">${initials}</div>
-                ${profile.isActive ? '<i class="fa-solid fa-check-circle" style="color: var(--primary); z-index:2;"></i>' : ''}
             </div>
             <div class="card-body">
                 <h3 class="profile-name">${profile.name}</h3>
@@ -72,7 +76,7 @@ function renderProfiles() {
                 </div>
             </div>
             <div class="card-footer">
-                <span class="badge">${profile.weights_status || 'Initialized'}</span>
+                <span class="badge ${badgeClass}">${badgeText}</span>
                 <i class="fa-solid fa-headset" style="color: var(--text-muted);" title="${profile.headsetDisplay}"></i>
             </div>
         `;
@@ -106,7 +110,7 @@ function updateDashboard(profile) {
     const isCalibrated = profile.calibration_status === 'calibrated';
 
     if (isCalibrated) {
-        activeBadge.innerText = 'Ready';
+        activeBadge.innerText = 'Calibrated';
         activeBadge.className = 'badge badge-success';
 
         calibrationWarning.classList.add('hidden');
@@ -121,8 +125,8 @@ function updateDashboard(profile) {
             btnDashStartSession.disabled = false;
         }
     } else {
-        activeBadge.innerText = 'Uncalibrated';
-        activeBadge.className = 'badge badge-warning';
+        activeBadge.innerText = 'Not Calibrated';
+        activeBadge.className = 'badge badge-danger';
 
         calibrationWarning.classList.remove('hidden');
         profileStatsGrid.classList.add('opacity-30');
@@ -142,8 +146,6 @@ function updateDashboard(profile) {
 
     if (statTime) statTime.innerText = `${usage.total_time_min}m`;
     if (statAcc) statAcc.innerText = `${usage.avg_accuracy.toFixed(1)}%`;
-    statSessions.innerText = usage.sessions;
-    statLast.innerText = usage.last_prediction;
 }
 
 // Fetch Profiles from Backend API
@@ -153,10 +155,23 @@ async function fetchProfiles(retries = 3) {
         if (response.ok) {
             profiles = await response.json();
 
-            // If we have profiles, ensure one is active visually (for demo purposes)
-            if (profiles.length > 0 && !profiles.some(p => p.isActive)) {
+            // Ensure mutually exclusive active state on load
+            let activeFound = false;
+            profiles.forEach(p => {
+                if (p.isActive && !activeFound) {
+                    activeFound = true;
+                } else {
+                    p.isActive = false; // Deactivate duplicates or all if none were found yet
+                }
+            });
+
+            // If none were active in the files, default to the first one
+            if (!activeFound && profiles.length > 0) {
                 profiles[0].isActive = true;
             }
+
+            // Immediately apply connection state globally
+            updateConnectionStatus(true);
 
             renderProfiles();
         } else {
@@ -211,16 +226,20 @@ modalOverlay.addEventListener('click', (e) => {
 // Navigation & View Toggling
 const linkProfiles = document.getElementById('link-profiles');
 const linkDashboard = document.getElementById('link-dashboard');
+const linkHeadset = document.getElementById('link-headset');
 const viewProfiles = document.getElementById('view-profiles');
 const viewDashboard = document.getElementById('view-dashboard');
+const viewHeadset = document.getElementById('view-headset');
 
 function switchView(viewName) {
     // Reset active states
     linkProfiles.parentElement.classList.remove('active');
     linkDashboard.parentElement.classList.remove('active');
+    linkHeadset.parentElement.classList.remove('active');
 
     viewProfiles.classList.add('hidden');
     viewDashboard.classList.add('hidden');
+    viewHeadset.classList.add('hidden');
 
     if (viewName === 'profiles') {
         linkProfiles.parentElement.classList.add('active');
@@ -229,11 +248,16 @@ function switchView(viewName) {
         linkDashboard.parentElement.classList.add('active');
         viewDashboard.classList.remove('hidden');
         renderFullDashboard();
+    } else if (viewName === 'headset') {
+        linkHeadset.parentElement.classList.add('active');
+        viewHeadset.classList.remove('hidden');
+        initHeadsetMock();
     }
 }
 
 linkProfiles.addEventListener('click', (e) => { e.preventDefault(); switchView('profiles'); });
 linkDashboard.addEventListener('click', (e) => { e.preventDefault(); switchView('dashboard'); });
+linkHeadset.addEventListener('click', (e) => { e.preventDefault(); switchView('headset'); });
 if (document.getElementById('btn-go-dashboard')) {
     document.getElementById('btn-go-dashboard').addEventListener('click', () => switchView('dashboard'));
 }
@@ -605,16 +629,87 @@ function renderCharts(usage) {
 }
 
 
+// ==========================================
+// Headset Link View Mock Logic
+// ==========================================
+let headsetInterval = null;
+
+function initHeadsetMock() {
+    const channelList = document.getElementById('channel-list');
+    const consoleBox = document.getElementById('headset-console');
+    const badge = document.getElementById('headset-status-badge');
+
+    // Clear previous
+    channelList.innerHTML = '';
+
+    // Create bars
+    const channels = ['FP1', 'FP2', 'C3', 'C4', 'P7', 'P8', 'O1', 'O2'];
+    channels.forEach((name, i) => {
+        const row = document.createElement('div');
+        row.className = 'channel-row';
+        row.innerHTML = `
+            <div class="channel-name">Ch ${i + 1} (${name})</div>
+            <div class="progress-bar" style="height: 6px;">
+                <div class="progress-fill" id="bar-ch-${i}" style="width: 0%; background: var(--success);"></div>
+            </div>
+            <div class="channel-value" id="val-ch-${i}">0µV</div>
+        `;
+        channelList.appendChild(row);
+    });
+
+    if (headsetInterval) clearInterval(headsetInterval);
+
+    badge.innerText = "Connected";
+    badge.className = "badge badge-success";
+    logConsole("Stream detected: Unicorn_v1 (sampling @ 250Hz)");
+    logConsole("Signal impedance within operational bounds.");
+
+    headsetInterval = setInterval(() => {
+        channels.forEach((_, i) => {
+            const val = 15 + Math.random() * 40;
+            const bar = document.getElementById(`bar-ch-${i}`);
+            const text = document.getElementById(`val-ch-${i}`);
+            if (bar) bar.style.width = (val * 1.5) + '%';
+            if (text) text.innerText = val.toFixed(1) + 'µV';
+        });
+
+        if (Math.random() > 0.9) {
+            logConsole(`Packet trace: ${Math.floor(Math.random() * 100)}ms delay`);
+        }
+    }, 200);
+}
+
+function logConsole(msg) {
+    const consoleBox = document.getElementById('headset-console');
+    if (!consoleBox) return;
+    const p = document.createElement('p');
+    p.className = 'console-log';
+    p.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    consoleBox.appendChild(p);
+    consoleBox.scrollTop = consoleBox.scrollHeight;
+}
+
+// Connection Status Management
+function updateConnectionStatus(isConnected) {
+    const pulseDots = document.querySelectorAll('.pulse-dot, .status-dot-inline');
+    const statusTexts = document.querySelectorAll('.status-indicator span, .status-text-inline, .global-status-badge span');
+
+    pulseDots.forEach(dot => {
+        if (isConnected) dot.classList.add('connected');
+        else dot.classList.remove('connected');
+    });
+
+    statusTexts.forEach(text => {
+        if (text.innerText.includes('Unicorn')) {
+            text.innerText = isConnected ? 'Unicorn: Connected' : 'Unicorn: Disconnected';
+        } else {
+            text.innerText = isConnected ? 'Connected' : 'Disconnected';
+        }
+    });
+}
+
 // Initial Fetch
 fetchProfiles();
 
-// Simple connection pulse animation simulation
-const pulseDot = document.querySelector('.pulse-dot');
-setInterval(() => {
-    if (profiles.some(p => p.isActive)) {
-        // simulate waiting for headset
-        pulseDot.style.background = 'var(--accent)';
-        pulseDot.style.boxShadow = '0 0 8px var(--accent)';
-        document.querySelector('.status-indicator span').innerText = 'Ready/Waiting for Data...';
-    }
-}, 5000);
+// Apply initial state
+updateConnectionStatus(true);

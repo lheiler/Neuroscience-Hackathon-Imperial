@@ -14,7 +14,7 @@
     <!-- Chart.js for Visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=7.0">
 </head>
 
 <body>
@@ -41,8 +41,8 @@
                 </ul>
             </nav>
             <div class="status-indicator">
-                <div class="pulse-dot"></div>
-                <span>Unicorn Disconnected</span>
+                <div class="pulse-dot connected"></div>
+                <span>Connected</span>
             </div>
         </aside>
 
@@ -56,9 +56,11 @@
                         <h1>Profile Management</h1>
                         <p class="subtitle">Select or create a subject profile to map decoding model weights.</p>
                     </div>
-                    <button id="btn-create-new" class="btn btn-primary">
-                        <i class="fa-solid fa-plus"></i> New Profile
-                    </button>
+                    <div class="header-actions">
+                        <button id="btn-create-new" class="btn btn-primary">
+                            <i class="fa-solid fa-plus"></i> New Profile
+                        </button>
+                    </div>
                 </header>
 
                 <div class="dashboard-layout">
@@ -79,7 +81,13 @@
                         <div class="active-profile-info">
                             <div id="active-avatar" class="avatar lg-avatar">--</div>
                             <h3 id="active-name" class="active-name">Select Profile</h3>
-                            <p id="active-headset" class="active-headset"><i class="fa-solid fa-headset"></i> --</p>
+                            <div class="active-status-line compact">
+                                <span id="active-headset" class="active-headset"><i class="fa-solid fa-headset"></i>
+                                    --</span>
+                                <span class="divider">|</span>
+                                <div class="pulse-dot connected sm"></div>
+                                <span class="status-text-inline">Connected</span>
+                            </div>
                         </div>
 
                         <div id="calibration-warning" class="alert-box warning mb-24 hidden">
@@ -104,15 +112,14 @@
                             </div>
                         </div>
 
-                        <div class="action-wrapper flex-col gap-16">
+                        <div class="action-wrapper flex-col">
                             <button class="btn btn-primary w-100 hidden" id="btn-calibrate">
                                 <i class="fa-solid fa-crosshairs"></i> Calibrate Profile
                             </button>
                             <button class="btn btn-success w-100 hidden" id="btn-start-session">
                                 <i class="fa-solid fa-satellite-dish"></i> Start Live Session
                             </button>
-                            <button class="btn btn-secondary w-100 hidden" id="btn-go-dashboard"
-                                style="margin-top: 8px;">
+                            <button class="btn btn-secondary w-100 hidden" id="btn-go-dashboard">
                                 <i class="fa-solid fa-chart-line"></i> View Full Analytics
                             </button>
                         </div>
@@ -190,6 +197,69 @@
                 </div>
             </div>
 
+            <!-- ====== HEADSET LINK VIEW ====== -->
+            <div id="view-headset" class="view-section hidden">
+                <header class="header">
+                    <div>
+                        <h1>Headset Link</h1>
+                        <p class="subtitle">Real-time stream monitoring and hardware diagnostics.</p>
+                    </div>
+                </header>
+
+                <div class="headset-layout">
+                    <!-- Device Specifications -->
+                    <div class="glass-panel headset-visualizer flex-col justify-center align-center text-center">
+                        <div class="specs-hero">
+                            <i class="fa-solid fa-microchip hardware-icon"></i>
+                            <h2>Unicorn Hybrid Black</h2>
+                            <p class="subtitle mt-48">Certified 8-Channel EEG Acquisition System</p>
+                        </div>
+
+                        <div class="device-info-grid prominent mt-48">
+                            <div class="info-item">
+                                <span class="info-label">Serial Number</span>
+                                <span class="info-val">UN-2024-8842</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Sampling Rate</span>
+                                <span class="info-val">250 Hz</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Interface</span>
+                                <span class="info-val">Bluetooth 5.2 (LE)</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Biosignal Channels</span>
+                                <span class="info-val">8 Channels (dc-coupled)</span>
+                            </div>
+                        </div>
+
+                        <div class="active-status-line compact mt-64" style="width: fit-content; margin: 0 auto;">
+                            <div class="pulse-dot connected"></div>
+                            <span class="status-text-inline">Connected</span>
+                        </div>
+                    </div>
+
+                    <!-- Signal Levels -->
+                    <div class="flex-col gap-16" style="height: 100%;">
+                        <div class="glass-panel status-card">
+                            <h3>Channel Potentials</h3>
+                            <div id="channel-list" class="flex-col gap-12 mt-24">
+                                <!-- Ch 1-8 dynamic bars -->
+                            </div>
+                        </div>
+
+                        <div class="glass-panel status-card">
+                            <h3>Diagnostic Console</h3>
+                            <div class="console-box mt-12" id="headset-console">
+                                <p class="console-log">[INFO] Initializing LSL stream listener...</p>
+                                <p class="console-log">[INFO] Looking for Unicorn Hybrid Black...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -245,7 +315,7 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=7.0"></script>
 </body>
 
 </html>
