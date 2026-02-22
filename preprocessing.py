@@ -21,32 +21,27 @@ from lib.data_extractions import get_events_from_raw, sub_name
 
 def preprocess_inner_speech_data(data_dir: Path, save_dir: Path):
     """
-    Preprocess the entire ds003626 dataset specifically for the Inner Speech condition
-    and the 4-word classification task.
+    Preprocess the ds003626 dataset specifically to replicate the Spectro-Temporal Transformer
+    reaching 82.4% accuracy. Uses strict filtering and artifact rejection.
     """
-    # Processing Variables
-    N_Subj_arr = range(1, 11)  # 1 to 10
-    N_block_arr = range(1, 4)  # 1 to 3
+    # Processing Variables: Study uses Sub 02, 03, 05, 06. Excludes 04.
+    N_Subj_arr = [2, 3, 5, 6]
+    N_block_arr = range(1, 4)
     
-    # Filtering settings
+    # 1. FIR Bandpass (0.5 - 100 Hz) and Notch (50 Hz)
     LOW_CUT = 0.5
-    HIGH_CUT = 100
-    NOTCH_FREQ = 50
-    DS_RATE = 4  # Downsample rate to reduce memory footprint
+    HIGH_CUT = 100.0
+    NOTCH_FREQ = 50.0
+    DS_RATE = 1 # No downsampling used in this high-temporal-context model
     
-    # Event IDs dict
     event_id = dict(Arriba=31, Abajo=32, Derecha=33, Izquierda=34)
-    target_tags = [31, 32, 33, 34]
     
-    # Lists to collect all epochs
     all_X = []
     all_y_words = []
     all_y_conditions = []
     all_subject_ids = []
     
     for n_s in N_Subj_arr:
-        # Handle subject 3 ad-hoc modifications (session 2 was actually run with only 3 words due to time or error, etc.)
-        # but to keep the script robust against those errors, we'll try/except the files
         num_s = sub_name(n_s)
         print(f"\nProcessing Subject: {num_s}")
         
@@ -54,56 +49,46 @@ def preprocess_inner_speech_data(data_dir: Path, save_dir: Path):
             try:
                 bdf_path = data_dir / f"{num_s}/ses-0{n_b}/eeg/{num_s}_ses-0{n_b}_task-innerspeech_eeg.bdf"
                 if not bdf_path.exists():
-                    print(f"Skipping {num_s} Session {n_b}: File not found.")
                     continue
                 
                 print(f"  Loading Session: {n_b} ...")
-                # 1. Load data
                 rawdata = mne.io.read_raw_bdf(input_fname=bdf_path, preload=True, verbose="WARNING")
-                
-                # 2. Re-reference to EXG1 and EXG2 (mastoids)
                 rawdata.set_eeg_reference(ref_channels=["EXG1", "EXG2"], verbose="WARNING")
                 
-                # 3. Filtering
-                print(f"    Applying Notch ({NOTCH_FREQ}Hz) and Bandpass ({LOW_CUT}-{HIGH_CUT}Hz) filters...")
-                rawdata.notch_filter(freqs=NOTCH_FREQ, verbose="WARNING")
-                rawdata.filter(LOW_CUT, HIGH_CUT, verbose="WARNING")
+                # Applying Notch and FIR Bandpass
+                rawdata.notch_filter(freqs=NOTCH_FREQ, verbose="WARNING", fir_design='firwin')
+                rawdata.filter(LOW_CUT, HIGH_CUT, verbose="WARNING", fir_design='firwin')
                 
-                # 4. Extract & Correct Events
+                # Extract Events FIRST (must be done at 1024Hz due to hardcoded sample offsets in the library)
+                # Resampling before this corrupts the Stim channel due to FIR filter ringing.
+                print("    Extracting Events...")
                 events = get_events_from_raw(rawdata, n_s, n_b)
                 events = check_baseline_tags(events)
                 events = event_correction(events=events)
-                
-                # Add condition tag (0: Pron, 1: Inner, 2: Vis)
                 events = add_condition_tag(events)
-                
-                # Standardize labels (31->0, 32->1, 33->2, 34->3)
                 events = finalize_labels(events)
                 
-                # 5. Filter Events for the 4 target words across ALL conditions
-                # We want codes 0, 1, 2, 3 (already standardized by finalize_labels)
+                # Filter for Word Classes
                 target_events_df = events[events['Code'].isin([0, 1, 2, 3])].copy()
-                
                 if len(target_events_df) == 0:
-                    print(f"    No target speech events found for {num_s} ses-0{n_b}. Skipping.")
                     continue
                 
                 target_event_array = target_events_df[['Time', 'Duration', 'Code']].astype(int).to_numpy()
                 target_words_y = target_events_df['Code'].astype(int).to_numpy()
                 target_conditions_y = target_events_df['condition'].astype(int).to_numpy()
-                
-                # Create an array of the subject ID for every single trial extracted here
                 subject_id_array = np.full(len(target_events_df), n_s, dtype=int)
                 
-                # 6. Epoching
-                # Select only the 128 EEG channels
+                # Now safely resample to 256 Hz and scale the event coordinates synchronously
+                rawdata, target_event_array = rawdata.resample(256.0, events=target_event_array, verbose="WARNING")
+                
+                # 2. SELECTION: 128 EEG Channels (We will reduce to 73 -> 37 in the Feature Extraction layer)
                 picks_eeg = mne.pick_types(rawdata.info, eeg=True, exclude=["EXG1", "EXG2", "EXG3", "EXG4", "EXG5", "EXG6", "EXG7", "EXG8"], stim=False)
                 
-                # Time window relative to the start of the stimulus
-                tmin = -0.5
-                tmax = 4.0
+                # 3. EPOCHING: [1.0s to 3.5s] = 2.5 seconds (2560 points at 1024Hz)
+                tmin = 1.0
+                tmax = 3.5
                 
-                print(f"    Extracting {len(target_event_array)} epochs for All Target Words...")
+                print(f"    Extracting epochs [1.0, 3.5]s...")
                 epochs = mne.Epochs(
                     rawdata, 
                     target_event_array, 
@@ -111,39 +96,67 @@ def preprocess_inner_speech_data(data_dir: Path, save_dir: Path):
                     tmax=tmax, 
                     picks=picks_eeg,
                     preload=True,
-                    detrend=0,
-                    decim=DS_RATE,
                     baseline=None,
                     verbose="WARNING"
                 )
                 
-                # Append to our total lists
-                all_X.append(epochs.get_data())
-                all_y_words.append(target_words_y)
-                all_y_conditions.append(target_conditions_y)
-                all_subject_ids.append(subject_id_array)
+                # 4. FLAT SEGMENT REJECTION: Reject below 1 μV (Keep this rule as dead channels cannot be reconstructed)
+                data = epochs.get_data() # (n_epochs, n_channels, n_times)
+                ptp = np.ptp(data, axis=-1) # Peak-to-peak amplitude
+                flat_mask = np.any(ptp < 1e-6, axis=1) # Mask epochs where ANY channel is flat
                 
-                # Memory management
+                if np.any(flat_mask):
+                    print(f"    Rejection: Dropped {np.sum(flat_mask)} flat epochs (<1uV).")
+                    epochs.drop(flat_mask, reason="FLAT")
+                    data = epochs.get_data() # Refresh data array after drop
+                    ptp = np.ptp(data, axis=-1)
+                    
+                # 5. VMD ARTIFACT REMOVAL (Replace amplitude rejection)
+                import vmdpy
+                noisy_epochs_count = 0
+                for i in range(data.shape[0]): # Iterate epochs
+                    epoch_noisy = False
+                    for j in range(data.shape[1]): # Iterate channels
+                        if ptp[i, j] > 300e-6:
+                            epoch_noisy = True
+                            # Apply VMD: (alpha, tau, K, DC, init, tol)
+                            # K=6 IMFs as specified
+                            u, u_hat, omega = vmdpy.VMD(data[i, j, :], 2000, 0, 6, 0, 1, 1e-7)
+                            # Discard IMF1 (u[0]) and reconstruct
+                            data[i, j, :u.shape[1]] = np.sum(u[1:, :], axis=0)
+                    if epoch_noisy:
+                        noisy_epochs_count += 1
+                        
+                if noisy_epochs_count > 0:
+                    print(f"    VMD Applied: Reconstructed noisy channels in {noisy_epochs_count} epochs.")
+                    
+                # Push the VMD-cleaned array back into the epochs object
+                epochs._data = data
+
+                
+                # Get the remaining synchronized labels
+                kept_indices = [i for i, log in enumerate(epochs.drop_log) if not log]
+                
+                all_X.append(epochs.get_data())
+                all_y_words.append(target_words_y[kept_indices])
+                all_y_conditions.append(target_conditions_y[kept_indices])
+                all_subject_ids.append(subject_id_array[kept_indices])
+                
                 del rawdata
                 del epochs
                 
             except Exception as e:
-                print(f"  Error processing {num_s} ses-0{n_b}: {e}")
+                print(f"  Error: {e}")
                 
-    # Stack all subjects
     if all_X:
-        print("\nStacking arrays across all subjects and sessions...")
         X_stacked = np.vstack(all_X)
         y_words_stacked = np.concatenate(all_y_words)
         y_conditions_stacked = np.concatenate(all_y_conditions)
         subject_ids_stacked = np.concatenate(all_subject_ids)
         
-        print(f"Final Data Shapes:\n  X: {X_stacked.shape} (Trials, Channels, TimeSteps)")
-        print(f"  y_words: {y_words_stacked.shape} (Trials,)")
-        print(f"  y_conditions: {y_conditions_stacked.shape} (Trials,)")
-        print(f"  subject_ids: {subject_ids_stacked.shape} (Trials,)")
+        print(f"\nFinal Preprocessed Snapshot (Shape): {X_stacked.shape}")
+        print(f"Subjects included: {np.unique(subject_ids_stacked)}")
         
-        # Save to disk
         os.makedirs(save_dir, exist_ok=True)
         np.save(save_dir / "X.npy", X_stacked)
         np.save(save_dir / "y_words.npy", y_words_stacked)
